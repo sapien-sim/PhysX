@@ -120,8 +120,8 @@ static bool cookConvexMeshInternal(const PxCookingParams& params, const PxConvex
 	// but we won't be able to use it on GPU.
 	if (((desc.flags & PxConvexFlag::eGPU_COMPATIBLE) || params.buildGPUData) && !meshBuilder.checkExtentRadiusRatio())
 	{
-		result = PxConvexMeshCookingResult::eNON_GPU_COMPATIBLE;
-		outputError<PxErrorCode::eDEBUG_WARNING>(__LINE__, "Cooking::cookConvexMesh: GPU-compatible convex hull could not be built because of oblong shape. Will fall back to CPU collision, particles and deformables will not collide with this mesh!");
+		// result = PxConvexMeshCookingResult::eNON_GPU_COMPATIBLE;
+		outputError<PxErrorCode::eDEBUG_WARNING>(__LINE__, "Cooking::cookConvexMesh: GPU-compatible convex hull could not be built because of oblong shape. SAPIEN ignores this error and enables GPU simulation anyway. This is a temporary workaround until PhysX fixes the oblong shape test.");
 	}
 
 	if(condition)
