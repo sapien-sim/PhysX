@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -36,7 +36,6 @@
 
 #include "SnFile.h"
 #include "SnSerializationContext.h"
-#include "SnConvX_Align.h"
 #include "serialization/SnSerializationRegistry.h"
 #include "serialization/SnSerialUtils.h"
 #include "CmCollection.h"
@@ -84,28 +83,19 @@ namespace
 		PX_UNUSED(markedPadding);
 
 		if (header != PX_MAKE_FOURCC('S','E','B','D'))
-		{
-			PxGetFoundation().error(physx::PxErrorCode::eINVALID_PARAMETER, PX_FL, 
+			return PxGetFoundation().error(physx::PxErrorCode::eINVALID_PARAMETER, PX_FL, 
 				"Buffer contains data with wrong header indicating invalid binary data.");
-			return false;
-		}
 
 		if (!checkCompatibility(binaryVersionGuid))
-		{
-			PxGetFoundation().error(physx::PxErrorCode::eINVALID_PARAMETER, PX_FL, 
+			return PxGetFoundation().error(physx::PxErrorCode::eINVALID_PARAMETER, PX_FL, 
 				"Buffer contains binary data version 0x%s and is incompatible with this PhysX sdk (0x%s).\n", 
 				binaryVersionGuid, getBinaryVersionGuid());
-			return false;
-		}
 
 		if (platformTag != getBinaryPlatformTag())
-		{
-			PxGetFoundation().error(physx::PxErrorCode::eINVALID_PARAMETER, PX_FL, 
+			return PxGetFoundation().error(physx::PxErrorCode::eINVALID_PARAMETER, PX_FL, 
 				"Buffer contains data with platform mismatch:\nExpected: %s \nActual: %s\n",
 				getBinaryPlatformName(getBinaryPlatformTag()),
 				getBinaryPlatformName(platformTag));
-			return false;
-		}
 
 		return true;
 	}
@@ -115,10 +105,7 @@ namespace
 		if (!externalRefs)
 		{
 			if (nbImportReferences > 0)
-			{
-				PxGetFoundation().error(PxErrorCode::eINVALID_PARAMETER, PX_FL, "PxSerialization::createCollectionFromBinary: External references needed but no externalRefs collection specified.");
-				return false;			
-			}
+				return PxGetFoundation().error(PxErrorCode::eINVALID_PARAMETER, PX_FL, "PxSerialization::createCollectionFromBinary: External references needed but no externalRefs collection specified.");
 		}
 		else
 		{
@@ -129,15 +116,10 @@ namespace
 
 				PxBase* referencedObject = externalRefs->find(id);
 				if (!referencedObject)
-				{
-					PxGetFoundation().error(PxErrorCode::eINVALID_PARAMETER, PX_FL, "PxSerialization::createCollectionFromBinary: External reference %" PX_PRIu64 " expected in externalRefs collection but not found.", id);
-					return false;
-				}
+					return PxGetFoundation().error(PxErrorCode::eINVALID_PARAMETER, PX_FL, "PxSerialization::createCollectionFromBinary: External reference %llu expected in externalRefs collection but not found.", id);
+
 				if (referencedObject->getConcreteType() != type)
-				{
-					PxGetFoundation().error(PxErrorCode::eINVALID_PARAMETER, PX_FL, "PxSerialization::createCollectionFromBinary: External reference %d type mismatch. Expected %d but found %d in externalRefs collection.", type, referencedObject->getConcreteType());
-					return false;
-				}
+					return PxGetFoundation().error(PxErrorCode::eINVALID_PARAMETER, PX_FL, "PxSerialization::createCollectionFromBinary: External reference %u type mismatch. Expected %u but found %u in externalRefs collection.", type, referencedObject->getConcreteType());
 			}
 		}
 		return true;

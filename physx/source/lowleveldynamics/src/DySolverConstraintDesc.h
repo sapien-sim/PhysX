@@ -22,18 +22,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #ifndef DY_SOLVER_CONSTRAINT_DESC_H
 #define DY_SOLVER_CONSTRAINT_DESC_H
 
-#include "PxvConfig.h"
+#include "PxPhysXConfig.h"
 #include "DySolverConstraintTypes.h"
 #include "foundation/PxUtilities.h"
 #include "PxConstraintDesc.h"
 #include "solver/PxSolverDefs.h"
+
+#define PGS_SUPPORT_COMPOUND_CONSTRAINTS	0
 
 namespace physx
 {
@@ -46,6 +48,7 @@ class FeatherstoneArticulation;
 
 // dsequeira: moved this articulation stuff here to sever a build dep on Articulation.h through DyThreadContext.h and onward
 
+#if PGS_SUPPORT_COMPOUND_CONSTRAINTS
 //This class rolls together multiple contact managers into a single contact manager.
 struct CompoundContactManager
 {
@@ -66,6 +69,7 @@ struct CompoundContactManager
 
 	PxU8* originalFrictionPatches;	//This is the original friction patches buffer that we replaced with a combined buffer	
 };
+#endif
 
 struct SolverConstraintPrepState
 {

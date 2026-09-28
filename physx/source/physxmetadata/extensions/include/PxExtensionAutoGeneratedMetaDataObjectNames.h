@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.
 
@@ -62,14 +62,13 @@ PxGearJoint_PropertiesStop,
 PxD6Joint_PropertiesStart,
 PxD6Joint_Motion,
 PxD6Joint_TwistAngle,
-PxD6Joint_Twist,
 PxD6Joint_SwingYAngle,
 PxD6Joint_SwingZAngle,
 PxD6Joint_DistanceLimit,
-PxD6Joint_LinearLimit,
 PxD6Joint_TwistLimit,
 PxD6Joint_SwingLimit,
 PxD6Joint_PyramidSwingLimit,
+PxD6Joint_AngularDriveConfig,
 PxD6Joint_Drive,
 PxD6Joint_DrivePosition,
 PxD6Joint_ConcreteTypeName,
@@ -84,14 +83,6 @@ PxDistanceJoint_Damping,
 PxDistanceJoint_DistanceJointFlags,
 PxDistanceJoint_ConcreteTypeName,
 PxDistanceJoint_PropertiesStop,
-PxContactJoint_PropertiesStart,
-PxContactJoint_Contact,
-PxContactJoint_ContactNormal,
-PxContactJoint_Penetration,
-PxContactJoint_Restitution,
-PxContactJoint_BounceThreshold,
-PxContactJoint_ConcreteTypeName,
-PxContactJoint_PropertiesStop,
 PxFixedJoint_PropertiesStart,
 PxFixedJoint_ConcreteTypeName,
 PxFixedJoint_PropertiesStop,

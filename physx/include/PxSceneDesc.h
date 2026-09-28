@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -46,9 +46,12 @@ namespace physx
 
 	class PxBroadPhaseCallback;
 	class PxCudaContextManager;
+	class PxPostSolveCallback;
 
 /**
 \brief Enum for selecting the friction algorithm used for simulation.
+
+\deprecated Since only the patch friction model is supported now, the friction type option is obsolete.
 
 #PxFrictionType::ePATCH is the default friction logic (Couloumb type friction model). Friction gets computed per contact patch.
 Up to two contact points lying in the contact patch area are selected as friction anchors to which friction impulses are applied. If there
@@ -63,13 +66,11 @@ and all velocity iterations (unless #PxSceneFlag::eENABLE_FRICTION_EVERY_ITERATI
 
 #PxFrictionType::eFRICTION_COUNT is the total number of friction models supported by the SDK.
 */
-struct PxFrictionType
+struct PX_DEPRECATED PxFrictionType
 {
 	enum Enum
 	{
 		ePATCH,				//!< Select default patch-friction model.
-		eONE_DIRECTIONAL PX_DEPRECATED, //!< \deprecated Will be removed in a future version without replacement. Please do not use.
-		eTWO_DIRECTIONAL PX_DEPRECATED,	//!< \deprecated Will be removed in a future version without replacement. Please do not use.
 		eFRICTION_COUNT		//!< The total number of friction models supported by the SDK.
 	};
 };
@@ -292,7 +293,7 @@ struct PxSceneFlag
 		*/
 		eENABLE_EXTERNAL_FORCES_EVERY_ITERATION_TGS = (1 << 16),
 
-		/*
+		/**
 		\brief Enables the direct-GPU API. Raising this flag is only allowed if eENABLE_GPU_DYNAMICS is raised and 
 		PxBroadphaseType::eGPU is used.
 
@@ -300,11 +301,14 @@ struct PxSceneFlag
 		faster.
 		
 		\note Enabling the direct-GPU API will disable the readback of simulation state from GPU to CPU. Simulation outputs
-		can only be accessed using the direct-GPU API functions in PxScene (PxScene::copyBodyData(), PxScene::copyArticulationData(),
-		PxScene::copySoftbodyData(), PxScene::copyContactData()), and reading state directly from the actor is not allowed.
+		can only be accessed using the direct-GPU API functions in PxDirectGPUAPI (PxDirectGPUAPI::getRigidDynamicData(),
+		PxDirectGPUAPI::getArticulationData(), PxDirectGPUAPI::copyContactData()), and reading state directly from the actor
+		is not allowed.
+
+		\note This flag requires PxSceneFlag::eDISABLE_SLEEPING to be raised.
 
 		\note This flag is not mutable and must be set in PxSceneDesc at scene creation.
-		\see PxScene::getDirectGPUAPI() PxDirectGPUAPI
+		\see PxScene::getDirectGPUAPI() PxDirectGPUAPI eDISABLE_SLEEPING
 
 		<b>Default</b> false
 		*/
@@ -334,12 +338,44 @@ struct PxSceneFlag
 		*/
 		eENABLE_BODY_ACCELERATIONS = (1 << 18),
 
-		/*
-		\brief Enables the solver residual reporting.
+		/**
+		\brief Reorders articulation contact constraints and articulation joint maximum velocity constraints in the solver.
 
-		\note Enabling this flag can have a negative impact on the performance but the impact should be small.
+		When this flag is raised, the solver will observe the following order:
+		- joint friction, joint drive, joint position limit
+		- link dynamic contact
+		- link static contact
+		- joint max velocity
+
+		When the flag is lowered, the solver will observe a modified order:
+		- link dynamic contact
+		- joint friction, joint drive, joint position limit
+		- joint max velocity
+		- link static contact
+
+		Raising the flag can be useful for certain simulation scenarios such as gripping, where it is desirable for dynamic contact 
+		to be resolved after joint drive but before max joint velocity.
+
+		\note Raising this flag may have a negative effect on simulation performance.
+
+		\note A goal of raising this flag is shallower contact penetration. This will in turn result in a reduced force 
+		reported by PxArticulationCache::linkIncomingJointForce.
+ 
+		<b>Default</b> false
 		*/
-		eENABLE_SOLVER_RESIDUAL_REPORTING = (1 << 19),
+		eSOLVE_ARTICULATION_CONTACT_LAST = (1 << 19),
+
+		/**
+		\brief Disables all sleeping logic in the scene.
+
+		When this flag is raised, no objects will be put to sleep. They will all be treated by the solver as awake.
+		This is a performance optimization for use cases where sleeping is not desired.
+
+		\note This flag is automatically enabled when PxSceneFlag::eENABLE_DIRECT_GPU_API is set.
+
+		<b>Default</b> false
+		*/
+		eDISABLE_SLEEPING = (1 << 20),
 
 		eMUTABLE_FLAGS = eENABLE_ACTIVE_ACTORS|eEXCLUDE_KINEMATICS_FROM_ACTIVE_ACTORS
 	};
@@ -427,18 +463,70 @@ PX_INLINE bool PxSceneLimits::isValid() const
 
 struct PxGpuDynamicsMemoryConfig
 {
-	PxU64 tempBufferCapacity;				//!< Initial capacity of temp solver buffer allocated in pinned host memory. This buffer will grow if more memory is needed than specified here.
-	PxU32 maxRigidContactCount;				//!< Size of contact stream buffer allocated in pinned host memory. This is double-buffered so total allocation size = 2* contactStreamCapacity * sizeof(PxContact).
-	PxU32 maxRigidPatchCount;				//!< Size of the contact patch stream buffer allocated in pinned host memory. This is double-buffered so total allocation size = 2 * patchStreamCapacity * sizeof(PxContactPatch).
-	PxU32 heapCapacity;						//!< Initial capacity of the GPU and pinned host memory heaps. Additional memory will be allocated if more memory is required.
-	PxU32 foundLostPairsCapacity;			//!< Capacity of found and lost buffers allocated in GPU global memory. This is used for the found/lost pair reports in the BP. 
-	PxU32 foundLostAggregatePairsCapacity;	//!< Capacity of found and lost buffers in aggregate system allocated in GPU global memory. This is used for the found/lost pair reports in AABB manager.
-	PxU32 totalAggregatePairsCapacity;		//!< Capacity of aggregate pair buffer allocated in GPU global memory.
-	PxU32 maxSoftBodyContacts;				//!< Capacity of softbody contact buffer allocated in GPU global memory.
-	PxU32 maxFemClothContacts;				//!< Capacity of femCloth contact buffer allocated in GPU global memory.
-	PxU32 maxParticleContacts;				//!< Capacity of particle contact buffer allocated in GPU global memory.
-	PxU32 collisionStackSize;				//!< Capacity of the collision stack buffer, used as scratch space during narrowphase collision detection.
-	PxU32 maxHairContacts;					//!< Capacity of hair system contact buffer allocated in GPU global memory.
+	/**
+	\brief Initial capacity of temp solver buffer allocated in pinned host memory.
+	This buffer will grow if more memory is needed than specified here.
+	*/
+	PxU64 tempBufferCapacity;
+
+	/**
+	\brief Size of contact stream buffer allocated in pinned host memory.
+	This is double-buffered so total allocation size = 2 * maxRigidContactCount * sizeof(PxContact).
+	*/
+	PxU32 maxRigidContactCount;
+
+	/**
+	\brief Size of the contact patch stream buffer allocated in pinned host memory.
+	This is double-buffered so total allocation size = 2 * maxRigidPatchCount * sizeof(PxContactPatch).
+	*/
+	PxU32 maxRigidPatchCount;
+
+	/**
+	\brief Initial capacity of the device and pinned host memory heaps.
+	Additional memory will be allocated if more memory is required, in increments of heapCapacity.
+	If an allocation is larger than half of heapCapacity, then the heap is bypassed and the memory 
+	is allocated directly. The configuration heapCapacity == 0 is valid: In this case no heap is 
+	allocated, and all allocations bypass the heap.
+	*/
+	PxU32 heapCapacity;
+
+	/**
+	\brief Capacity of found and lost buffers allocated in GPU global memory.
+	This is used for the found/lost pair reports in the BP.
+	*/
+	PxU32 foundLostPairsCapacity;
+
+	/**
+	\brief Capacity of found and lost buffers in aggregate system allocated in GPU global memory.
+	This is used for the found/lost pair reports in AABB manager.
+	*/
+	PxU32 foundLostAggregatePairsCapacity;
+
+	/**
+	\brief Capacity of aggregate pair buffer allocated in GPU global memory.
+	*/
+	PxU32 totalAggregatePairsCapacity;
+
+	/**
+	\brief Capacity of deformable surface contact buffer allocated in GPU global memory.
+	*/
+	PxU32 maxDeformableSurfaceContacts;
+
+	/**
+	\brief Capacity of deformable volume contact buffer allocated in GPU global memory.
+	*/
+	PxU32 maxDeformableVolumeContacts;
+
+	/**
+	\brief Capacity of particle contact buffer allocated in GPU global memory.
+	*/
+	PxU32 maxParticleContacts;
+
+	/**
+	\brief Capacity of the collision stack buffer.
+	Used as scratch space during narrowphase collision detection.
+	*/
+	PxU32 collisionStackSize;
 
 	PxGpuDynamicsMemoryConfig() :
 		tempBufferCapacity(16 * 1024 * 1024),
@@ -448,11 +536,10 @@ struct PxGpuDynamicsMemoryConfig
 		foundLostPairsCapacity(256 * 1024),
 		foundLostAggregatePairsCapacity(1024),
 		totalAggregatePairsCapacity(1024),
-		maxSoftBodyContacts(1 * 1024 * 1024),
-		maxFemClothContacts(1 * 1024 * 1024),
+		maxDeformableSurfaceContacts(1 * 1024 * 1024),
+		maxDeformableVolumeContacts(1 * 1024 * 1024),
 		maxParticleContacts(1*1024*1024),
-		collisionStackSize(64*1024*1024),
-		maxHairContacts(1 * 1024 * 1024)
+		collisionStackSize(64*1024*1024)
 	{
 	}
 
@@ -462,7 +549,7 @@ struct PxGpuDynamicsMemoryConfig
 PX_INLINE bool PxGpuDynamicsMemoryConfig::isValid() const
 {
 	const bool isPowerOfTwo = PxIsPowerOfTwo(heapCapacity);
-	return isPowerOfTwo;
+	return isPowerOfTwo || (heapCapacity == 0);
 }
 
 //#endif
@@ -516,6 +603,24 @@ public:
 	\see PxContactModifyCallback PxScene.setContactModifyCallback() PxScene.getContactModifyCallback()
 	*/
 	PxCCDContactModifyCallback*	ccdContactModifyCallback;
+
+	/**
+	\brief Possible asynchronous callback for post-solve operations on deformable surfaces.
+
+	<b>Default:</b> NULL
+
+	\see PxPostSolveCallback
+	*/
+	PxPostSolveCallback* deformableSurfacePostSolveCallback;
+
+	/**
+	\brief Possible asynchronous callback for post-solve operations on deformable volumes.
+
+	<b>Default:</b> NULL
+
+	\see PxPostSolveCallback
+	*/
+	PxPostSolveCallback* deformableVolumePostSolveCallback;
 
 	/**
 	\brief Shared global filter data which will get passed into the filter shader.
@@ -595,6 +700,17 @@ public:
 	PxBroadPhaseCallback*	broadPhaseCallback;
 
 	/**
+	\brief Optional GPU broad-phase descriptor.
+
+	This is only used for the GPU broadphase (PxBroadPhaseType::eGPU).
+
+	<b>Default:</b> NULL
+
+	\see PxBroadPhaseType
+	*/
+	PxGpuBroadPhaseDesc*	gpuBroadPhaseDesc;
+
+	/**
 	\brief Expected scene limits.
 
 	\see PxSceneLimits PxScene.getLimits()
@@ -604,13 +720,13 @@ public:
 	/**
 	\brief Selects the friction algorithm to use for simulation.
 
-	\note frictionType cannot be modified after the first call to any of PxScene::simulate, PxScene::solve and PxScene::collide
+	\deprecated Since only the patch friction model is supported now, the frictionType parameter is obsolete.
 
 	<b>Default:</b> PxFrictionType::ePATCH
 
-	\see PxFrictionType PxScene.setFrictionType(), PxScene.getFrictionType()
+	\see PxFrictionType PxScene.getFrictionType()
 	*/
-	PxFrictionType::Enum frictionType;
+	PX_DEPRECATED PxFrictionType::Enum frictionType;
 
 	/**
 	\brief Selects the solver algorithm to use.
@@ -965,6 +1081,8 @@ PX_INLINE PxSceneDesc::PxSceneDesc(const PxTolerancesScale& scale):
 	simulationEventCallback			(NULL),
 	contactModifyCallback			(NULL),
 	ccdContactModifyCallback		(NULL),
+	deformableSurfacePostSolveCallback(NULL),
+	deformableVolumePostSolveCallback(NULL),
 
 	filterShaderData				(NULL),
 	filterShaderDataSize			(0),
@@ -976,6 +1094,7 @@ PX_INLINE PxSceneDesc::PxSceneDesc(const PxTolerancesScale& scale):
 
 	broadPhaseType					(PxBroadPhaseType::ePABP),
 	broadPhaseCallback				(NULL),
+	gpuBroadPhaseDesc				(NULL),
 
 	frictionType					(PxFrictionType::ePATCH),
 	solverType						(PxSolverType::ePGS),
@@ -1076,11 +1195,17 @@ PX_INLINE bool PxSceneDesc::isValid() const
 	if(!gpuDynamicsConfig.isValid())
 		return false;
 
-	if (flags & PxSceneFlag::eENABLE_DIRECT_GPU_API)
+	if(flags & PxSceneFlag::eENABLE_DIRECT_GPU_API)
 	{
 		if(!(flags & PxSceneFlag::eENABLE_GPU_DYNAMICS && broadPhaseType == PxBroadPhaseType::eGPU))
 			return false;
+
+		if(flags & PxSceneFlag::eENABLE_CCD)
+			return false;
 	}
+
+	if(gpuBroadPhaseDesc && broadPhaseType != PxBroadPhaseType::eGPU)
+		return false;
 #endif
 
 	if(contactPairSlabSize == 0)

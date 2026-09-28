@@ -22,14 +22,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #include "PxvGlobals.h"
-#include "PxsContext.h"
-#include "PxcContactMethodImpl.h"
-#include "GuContactMethodImpl.h"
 
 #if PX_SUPPORT_GPU_PHYSX
 	#include "PxPhysXGpu.h"
@@ -95,100 +92,3 @@ namespace physx
 	}
 }
 #endif
-
-#include "common/PxMetaData.h"
-#include "PxsFEMClothMaterialCore.h"
-#include "PxsFEMSoftBodyMaterialCore.h"
-#include "PxsPBDMaterialCore.h"
-#include "PxsMaterialCore.h"
-
-namespace physx
-{
-
-template<> void PxsMaterialCore::getBinaryMetaData(PxOutputStream& stream)
-{
-	PX_DEF_BIN_METADATA_TYPEDEF(stream,	PxCombineMode::Enum, PxU32)
-	PX_DEF_BIN_METADATA_TYPEDEF(stream,	PxMaterialFlags, PxU16)
-
-	PX_DEF_BIN_METADATA_CLASS(stream,	PxsMaterialCore)
-
-	// MaterialData
-	PX_DEF_BIN_METADATA_ITEM(stream,	PxsMaterialCore, PxReal,			dynamicFriction,	0)
-	PX_DEF_BIN_METADATA_ITEM(stream,	PxsMaterialCore, PxReal,			staticFriction,		0)
-	PX_DEF_BIN_METADATA_ITEM(stream,	PxsMaterialCore, PxReal,			restitution,		0)
-	PX_DEF_BIN_METADATA_ITEM(stream,	PxsMaterialCore, PxReal,			damping,			0)
-
-	PX_DEF_BIN_METADATA_ITEM(stream,	PxsMaterialCore, PxMaterialFlags,	flags,				0)
-	PX_DEF_BIN_METADATA_ITEM(stream,	PxsMaterialCore, PxU8,				fricCombineMode,	0)
-	PX_DEF_BIN_METADATA_ITEM(stream,	PxsMaterialCore, PxU8,				restCombineMode,	0)
-	PX_DEF_BIN_METADATA_ITEM(stream,	PxsMaterialCore, PxU8,				dampingCombineMode,	0)
-
-	// MaterialCore
-	PX_DEF_BIN_METADATA_ITEM(stream,	PxsMaterialCore, PxMaterial,		mMaterial,			PxMetaDataFlag::ePTR)
-	PX_DEF_BIN_METADATA_ITEM(stream,	PxsMaterialCore, PxU16,				mMaterialIndex,		PxMetaDataFlag::eHANDLE)
-}
-
-template<> void PxsFEMSoftBodyMaterialCore::getBinaryMetaData(PxOutputStream& stream)
-{
-	PX_DEF_BIN_METADATA_CLASS(stream, PxsFEMSoftBodyMaterialCore)
-
-	// MaterialData
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsFEMSoftBodyMaterialCore, PxReal, youngs,				0)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsFEMSoftBodyMaterialCore, PxReal, poissons,				0)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsFEMSoftBodyMaterialCore, PxReal, dynamicFriction,		0)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsFEMSoftBodyMaterialCore, PxReal, damping,				0)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsFEMSoftBodyMaterialCore, PxU16,  dampingScale,			0)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsFEMSoftBodyMaterialCore, PxU16,  materialModel,         0)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsFEMSoftBodyMaterialCore, PxReal, deformThreshold,		0)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsFEMSoftBodyMaterialCore, PxReal, deformLowLimitRatio,	0)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsFEMSoftBodyMaterialCore, PxReal, deformHighLimitRatio,	0)
-
-	// MaterialCore
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsFEMSoftBodyMaterialCore, PxFEMSoftBodyMaterial,	mMaterial,		PxMetaDataFlag::ePTR)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsFEMSoftBodyMaterialCore, PxU16,					mMaterialIndex,	PxMetaDataFlag::eHANDLE)
-}
-
-template<> void PxsFEMClothMaterialCore::getBinaryMetaData(PxOutputStream& stream)
-{
-	PX_DEF_BIN_METADATA_CLASS(stream, PxsFEMClothMaterialCore)
-
-	// MaterialData
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsFEMClothMaterialCore, PxReal, youngs,				0)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsFEMClothMaterialCore, PxReal, poissons,				0)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsFEMClothMaterialCore, PxReal, dynamicFriction,		0)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsFEMClothMaterialCore, PxReal, thickness,			0)
-	
-	// MaterialCore
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsFEMClothMaterialCore, PxFEMClothMaterial,	mMaterial,		PxMetaDataFlag::ePTR)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsFEMClothMaterialCore, PxU16,				mMaterialIndex,	PxMetaDataFlag::eHANDLE)
-}
-
-template<> void PxsPBDMaterialCore::getBinaryMetaData(PxOutputStream& stream)
-{
-	PX_DEF_BIN_METADATA_CLASS(stream, PxsPBDMaterialCore)
-
-	// MaterialData
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsPBDMaterialCore, PxReal, friction, 0)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsPBDMaterialCore, PxReal, damping, 0)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsPBDMaterialCore, PxReal, adhesion, 0)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsPBDMaterialCore, PxReal, gravityScale, 0)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsPBDMaterialCore, PxReal, adhesionRadiusScale, 0)
-
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsPBDMaterialCore, PxU32, flags, 0)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsPBDMaterialCore, PxReal, viscosity, 0)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsPBDMaterialCore, PxReal, vorticityConfinement, 0)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsPBDMaterialCore, PxReal, surfaceTension, 0)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsPBDMaterialCore, PxReal, cohesion, 0)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsPBDMaterialCore, PxReal, lift, 0)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsPBDMaterialCore, PxReal, drag, 0)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsPBDMaterialCore, PxReal, cflCoefficient, 0)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsPBDMaterialCore, PxReal, particleFrictionScale, 0)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsPBDMaterialCore, PxReal, particleAdhesionScale, 0)
-	
-	// MaterialCore
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsPBDMaterialCore, PxPBDMaterial, mMaterial, PxMetaDataFlag::ePTR)
-	PX_DEF_BIN_METADATA_ITEM(stream, PxsPBDMaterialCore, PxU16, mMaterialIndex, PxMetaDataFlag::eHANDLE)
-}
-
-}
-

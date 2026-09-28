@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -57,7 +57,7 @@ namespace Gu
 	{
 		
 		using namespace aos;
-		const Vec3V extents= V3Mul(V3LoadU_SafeReadW(hullData->mInternal.mInternalExtents), scale);
+		const Vec3V extents = V3Mul(V3LoadU_SafeReadW(hullData->mInternal.mInternalExtents), scale);
 		const FloatV min = V3ExtractMin(extents);
 		const FloatV toleranceMargin = FLoad(toleranceLength * toleranceRatio);
 		//ML: 25% of the minimum extents of the internal AABB as this convex hull's margin
@@ -126,7 +126,7 @@ namespace Gu
 
 			//this is uniform scale
 			if(V3AllEq(V3Splat(scaleX), scale))
-			{	
+			{
 				vertex2Shape = M33Diagonal(scale);
 				shape2Vertex = M33Diagonal(invScale);
 			}
@@ -439,10 +439,10 @@ namespace Gu
 
 			if(data)
 			{
-				const PxU32 maxIndex= hillClimbing(dir);
-				const PxU32 minIndex= hillClimbing(V3Neg(dir));
-				const Vec3V maxPoint= M33MulV3(vertex2Shape, V3LoadU_SafeReadW(verts[maxIndex]));	// PT: safe because of the way vertex memory is allocated in ConvexHullData (and 'verts' is initialized with ConvexHullData::getHullVertices())
-				const Vec3V minPoint= M33MulV3(vertex2Shape, V3LoadU_SafeReadW(verts[minIndex]));	// PT: safe because of the way vertex memory is allocated in ConvexHullData (and 'verts' is initialized with ConvexHullData::getHullVertices())
+				const PxU32 maxIndex = hillClimbing(dir);
+				const PxU32 minIndex = hillClimbing(V3Neg(dir));
+				const Vec3V maxPoint = M33MulV3(vertex2Shape, V3LoadU_SafeReadW(verts[maxIndex]));	// PT: safe because of the way vertex memory is allocated in ConvexHullData (and 'verts' is initialized with ConvexHullData::getHullVertices())
+				const Vec3V minPoint = M33MulV3(vertex2Shape, V3LoadU_SafeReadW(verts[minIndex]));	// PT: safe because of the way vertex memory is allocated in ConvexHullData (and 'verts' is initialized with ConvexHullData::getHullVertices())
 				min = V3Dot(_dir, minPoint);
 				max = V3Dot(_dir, maxPoint);
 			}
@@ -489,7 +489,7 @@ namespace Gu
 			//transform dir into the shape space
 //			const Vec3V dir_ = aTob.rotateInv(dir);//relTra.rotateInv(dir);
 			const Vec3V dir_ = aTobT.rotate(dir);//relTra.rotateInv(dir);
-			const Vec3V maxPoint =supportLocal(dir_);
+			const Vec3V maxPoint = supportLocal(dir_);
 			//translate maxPoint from shape space of a back to the b space
 			return aTob.transform(maxPoint);//relTra.transform(maxPoint);
 		}

@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -52,7 +52,6 @@ class NpArticulationLinkArray : public PxInlineArray<NpArticulationLink*, 4>  //
 public:
 // PX_SERIALIZATION
 	NpArticulationLinkArray(const PxEMPTY) : PxInlineArray<NpArticulationLink*, 4> (PxEmpty) {}
-	static	void	getBinaryMetaData(PxOutputStream& stream);
 //~PX_SERIALIZATION
 	NpArticulationLinkArray() : PxInlineArray<NpArticulationLink*, 4>("articulationLinkArray") {}
 };
@@ -63,13 +62,12 @@ public:
 // PX_SERIALIZATION
 											NpArticulationLink(PxBaseFlags baseFlags) : NpArticulationLinkT(baseFlags), mChildLinks(PxEmpty)	{}
 				void						preExportDataReset() { NpArticulationLinkT::preExportDataReset(); }
-	virtual		void						exportExtraData(PxSerializationContext& context);
-				void						importExtraData(PxDeserializationContext& context);
-				void						resolveReferences(PxDeserializationContext& context);
-	virtual		void						requiresObjects(PxProcessPxBaseCallback& c);
+	virtual		void						exportExtraData(PxSerializationContext& context) PX_OVERRIDE;
+				void						importExtraData(PxDeserializationContext& context) PX_OVERRIDE;
+				void						resolveReferences(PxDeserializationContext& context) PX_OVERRIDE;
+	virtual		void						requiresObjects(PxProcessPxBaseCallback& c) PX_OVERRIDE;
 	virtual		bool						isSubordinate()  const	 { return true; } 
 	static		NpArticulationLink*			createObject(PxU8*& address, PxDeserializationContext& context);
-	static		void						getBinaryMetaData(PxOutputStream& stream);		
 //~PX_SERIALIZATION
 											NpArticulationLink(const PxTransform& bodyPose, PxArticulationReducedCoordinate& root, NpArticulationLink* parent);
 	virtual									~NpArticulationLink();

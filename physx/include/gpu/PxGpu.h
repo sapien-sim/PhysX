@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 
 #ifndef PX_GPU_H
 #define PX_GPU_H
@@ -33,7 +33,6 @@
 #if PX_SUPPORT_GPU_PHYSX
 
 #include "cudamanager/PxCudaContextManager.h"
-#include "foundation/Px.h"
 #include "foundation/PxPreprocessor.h"
 #include "foundation/PxFoundation.h"
 #include "common/PxPhysXCommonConfig.h"
@@ -98,6 +97,13 @@ PX_C_EXPORT PX_PHYSX_CORE_API physx::PxCudaContextManager* PX_CALL_CONV PxCreate
  */
 PX_C_EXPORT PX_PHYSX_CORE_API void PX_CALL_CONV PxSetPhysXGpuProfilerCallback(physx::PxProfilerCallback* profilerCallback);
 
+/**
+ * \brief Sets PhysXFoundation instance
+ \param[in] foundation PhysXFoundation instance.
+
+ \see PxGetFoundation()
+ */
+PX_C_EXPORT PX_PHYSX_CORE_API void PX_CALL_CONV PxSetPhysXGpuFoundationInstance(physx::PxFoundation& foundation);
 
 /**
 \brief Internally used callback to register function names of cuda kernels

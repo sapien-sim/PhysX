@@ -22,13 +22,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #ifdef RENDER_SNIPPET
-
-#include <vector>
 
 #include "PxPhysicsAPI.h"
 #include "cudamanager/PxCudaContext.h"
@@ -40,7 +38,7 @@
 #include "PxIsosurfaceExtraction.h"
 #include "foundation/PxArray.h"
 
-#define USE_CUDA_INTEROP (!PX_PUBLIC_RELEASE)
+#define USE_CUDA_INTEROP (PX_SUPPORT_GPU_PHYSX)
 
 #define CUDA_SUCCESS 0
 #define SHOW_SOLID_SDF_SLICE 0
@@ -228,7 +226,7 @@ namespace
 		PxU32 nbActors = scene->getNbActors(PxActorTypeFlag::eRIGID_DYNAMIC | PxActorTypeFlag::eRIGID_STATIC);
 		if (nbActors)
 		{
-			std::vector<PxRigidActor*> actors(nbActors);
+			PxArray<PxRigidActor*> actors(nbActors);
 			scene->getActors(PxActorTypeFlag::eRIGID_DYNAMIC | PxActorTypeFlag::eRIGID_STATIC, reinterpret_cast<PxActor**>(&actors[0]), nbActors);
 			Snippets::renderActors(&actors[0], static_cast<PxU32>(actors.size()), true);
 		}
@@ -251,7 +249,7 @@ namespace
 		cleanupPhysics(true);
 	}
 
-	void exitCallback(void)
+	void exitCallback()
 	{
 
 	}

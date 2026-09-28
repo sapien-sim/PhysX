@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -30,7 +30,7 @@
 #define SC_ELEMENT_SIM_H
 
 #include "PxFiltering.h"
-#include "PxvConfig.h"
+#include "PxPhysXConfig.h"
 #include "ScActorSim.h"
 #include "ScInteraction.h"
 #include "BpAABBManager.h"
@@ -94,15 +94,22 @@ namespace Sc
 
 		PX_FORCE_INLINE PxU32					getElementID()				const	{ return mElementID;	}
 		PX_FORCE_INLINE bool					isInBroadPhase()			const	{ return mInBroadPhase;	}
+		PX_FORCE_INLINE void					setInBroadPhase()					{ mInBroadPhase = true;	}
 
 						void					addToAABBMgr(PxReal contactDistance, Bp::FilterGroup::Enum group, Bp::ElementType::Enum type);
+		PX_FORCE_INLINE	void					addToAABBMgr(PxReal contactOffset, Bp::FilterType::Enum type)
+												{
+													const PxU32 group = Bp::FilterGroup::eDYNAMICS_BASE + mActor.getActorID();
+													addToAABBMgr(contactOffset, Bp::FilterGroup::Enum((group << BP_FILTERING_TYPE_SHIFT_BIT) | type), Bp::ElementType::eSHAPE);
+												}
+
 						bool					removeFromAABBMgr();
 
-		PX_FORCE_INLINE	void					initID()
+		PX_FORCE_INLINE	bool					initID()
 												{
 													Scene& scene = getScene();
 													mElementID = scene.getElementIDPool().createID();
-													scene.getBoundsArray().initEntry(mElementID);
+													return scene.getBoundsArray().initEntry(mElementID);
 												}
 
 		PX_FORCE_INLINE	void					releaseID()

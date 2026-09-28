@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -100,7 +100,7 @@ static bool cookConvexMeshInternal(const PxCookingParams& params, const PxConvex
 	if(desc.polygons.count >= 256)
 		return outputError<PxErrorCode::eINTERNAL_ERROR>(__LINE__, "Cooking::cookConvexMesh: user-provided hull must have less than 256 faces!");
 
-	if ((desc.flags & PxConvexFlag::eGPU_COMPATIBLE) || params.buildGPUData)
+	if (params.buildGPUData)
 	{
 		if (desc.points.count > 64)
 			return outputError<PxErrorCode::eINTERNAL_ERROR>(__LINE__, "Cooking::cookConvexMesh: GPU-compatible user-provided hull must have less than 65 vertices!");
@@ -118,7 +118,7 @@ static bool cookConvexMeshInternal(const PxCookingParams& params, const PxConvex
 
 	// AD: we check this outside of the actual convex cooking because we can still cook a valid convex hull
 	// but we won't be able to use it on GPU.
-	if (((desc.flags & PxConvexFlag::eGPU_COMPATIBLE) || params.buildGPUData) && !meshBuilder.checkExtentRadiusRatio())
+	if (params.buildGPUData && !meshBuilder.checkExtentRadiusRatio())
 	{
 		// result = PxConvexMeshCookingResult::eNON_GPU_COMPATIBLE;
 		outputError<PxErrorCode::eDEBUG_WARNING>(__LINE__, "Cooking::cookConvexMesh: GPU-compatible convex hull could not be built because of oblong shape. SAPIEN ignores this error and enables GPU simulation anyway. This is a temporary workaround until PhysX fixes the oblong shape test.");
@@ -131,14 +131,14 @@ static bool cookConvexMeshInternal(const PxCookingParams& params, const PxConvex
 }
 
 static ConvexHullLib* createHullLib(PxConvexMeshDesc& desc, const PxCookingParams& params)
-{	
+{
 	if(desc.flags & PxConvexFlag::eCOMPUTE_CONVEX)
-	{			
+	{
 		const PxU16 gpuMaxVertsLimit = 64;
 		const PxU16 gpuMaxFacesLimit = 64;
 
 		// GRB supports 64 verts max
-		if((desc.flags & PxConvexFlag::eGPU_COMPATIBLE) || params.buildGPUData)
+		if(params.buildGPUData)
 		{
 			desc.vertexLimit = PxMin(desc.vertexLimit, gpuMaxVertsLimit);
 			desc.polygonLimit = PxMin(desc.polygonLimit, gpuMaxFacesLimit);
@@ -150,7 +150,7 @@ static ConvexHullLib* createHullLib(PxConvexMeshDesc& desc, const PxCookingParam
 }
 
 bool immediateCooking::cookConvexMesh(const PxCookingParams& params, const PxConvexMeshDesc& desc_, PxOutputStream& stream, PxConvexMeshCookingResult::Enum* condition)
-{	
+{
 	PX_FPU_GUARD;
 
 	// choose cooking library if needed
@@ -166,7 +166,7 @@ bool immediateCooking::cookConvexMesh(const PxCookingParams& params, const PxCon
 
 	// save the cooked results into stream
 	if(!meshBuilder.save(stream, platformMismatch()))
-	{		
+	{
 		if(condition)
 			*condition = PxConvexMeshCookingResult::eFAILURE;
 

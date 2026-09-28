@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -36,16 +36,6 @@
 
 namespace physx
 {
-
-/*!
-\file
-Context handling
-*/
-
-/************************************************************************/
-/* Context handling, types                                              */
-/************************************************************************/
-
 /*!
 Description: contains statistics for the simulation.
 */
@@ -112,12 +102,10 @@ struct PxvSimStats
 	PxU32	mGpuDynamicsFoundLostPairs;
 	PxU32	mGpuDynamicsFoundLostAggregatePairs;
 	PxU32	mGpuDynamicsTotalAggregatePairs;
-	PxU32	mGpuDynamicsSoftbodyContacts;
-	PxU32	mGpuDynamicsFemClothContacts;
+	PxU32	mGpuDynamicsDeformableSurfaceContacts;
+	PxU32	mGpuDynamicsDeformableVolumeContacts;
 	PxU32	mGpuDynamicsParticleContacts; // not implemented
 	PxU32	mGpuDynamicsCollisionStackSize;
-	PxU32	mGpuDynamicsHairContacts;     // not implemented
-
 };
 
 }

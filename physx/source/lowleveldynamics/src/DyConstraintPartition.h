@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -69,7 +69,6 @@ struct ConstraintPartitionOut
 		mOverflowConstraintDescriptors(overflowConstraintDescriptors),
 		mConstraintsPerPartition(constraintsPerPartition),
 		mNumDifferentBodyConstraints(0),
-		mNumSelfConstraints(0),
 		mNumStaticConstraints(0),
 		mNumOverflowConstraints(0)
 	{
@@ -78,9 +77,7 @@ struct ConstraintPartitionOut
 	PxSolverConstraintDesc*	mOrderedContactConstraintDescriptors;
 	PxSolverConstraintDesc*	mOverflowConstraintDescriptors;
 	PxArray<PxU32>*			mConstraintsPerPartition;	// PT: actually accumulated constraints per partition
-	//PxArray<PxU32>*		mBitField;	// PT: removed, unused
 	PxU32					mNumDifferentBodyConstraints;
-	PxU32					mNumSelfConstraints;
 	PxU32					mNumStaticConstraints;
 	PxU32					mNumOverflowConstraints;
 };
@@ -88,7 +85,7 @@ struct ConstraintPartitionOut
 PxU32 partitionContactConstraints(ConstraintPartitionOut& out, const ConstraintPartitionIn& in);
 
 // PT: TODO: why is this only called for TGS?
-void processOverflowConstraints(PxU8* bodies, PxU32 bodyStride, PxU32 numBodies, ArticulationSolverDesc* articulations, PxU32 numArticulations,
+void processOverflowConstraints(PxU8* bodies, PxU32 bodyStride, PxU32 numBodies, FeatherstoneArticulation** articulations, PxU32 numArticulations,
 	PxSolverConstraintDesc* constraints, PxU32 numConstraints);
 
 } // namespace physx

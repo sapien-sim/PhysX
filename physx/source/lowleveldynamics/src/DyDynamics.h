@@ -22,37 +22,24 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #ifndef DY_DYNAMICS_H
 #define DY_DYNAMICS_H
 
-#include "PxvConfig.h"
+#include "DyDynamicsBase.h"
+#include "PxPhysXConfig.h"
 #include "CmTask.h"
 #include "CmPool.h"
 #include "PxcThreadCoherentCache.h"
-#include "DyThreadContext.h"
 #include "PxcConstraintBlockStream.h"
 #include "DySolverBody.h"
-#include "DyContext.h"
-#include "PxsIslandManagerTypes.h"
-#include "PxvNphaseImplementationContext.h"
-#include "solver/PxSolverDefs.h"
+#include "DyCpuGpuBiasCoefficient.h"
 
 namespace physx
 {
-namespace Cm
-{
-	class FlushPool;
-}
-
-namespace IG
-{
-	class SimpleIslandManager;
-}
-
 class PxsRigidBody;
 
 struct PxsBodyCore;
@@ -68,7 +55,6 @@ namespace Cm
 
 namespace Dy
 {
-	class SolverCore;
 	struct SolverIslandParams;
 	class DynamicsContext;
 
@@ -126,57 +112,33 @@ struct IslandContext
 	#pragma warning( disable : 4324 ) // Padding was added at the end of a structure because of a __declspec(align) value.
 #endif
 
-class DynamicsContext : public Context
+class DynamicsContext : public DynamicsContextBase
 {
 	PX_NOCOPY(DynamicsContext)
 public:
-	
-										DynamicsContext(PxcNpMemBlockPool* memBlockPool,
-														PxcScratchAllocator& scratchAllocator,
-														Cm::FlushPool& taskPool,
-														PxvSimStats& simStats,
-														PxTaskManager* taskManager,
-														PxVirtualAllocatorCallback* allocator,
-														PxsMaterialManager* materialManager,
-														IG::SimpleIslandManager* islandManager,
-														PxU64 contextID,
-														bool enableStabilization,
-														bool useEnhancedDeterminism,
-														PxReal maxBiasCoefficient,
-														bool frictionEveryIteration,
-														PxReal lengthScale,
-														bool isResidualReportingEnabled
-														);
+										DynamicsContext(PxcNpMemBlockPool* memBlockPool, Cm::FlushPool& taskPool,
+														PxvSimStats& simStats, Cm::VirtualAllocatorCallback& allocator,
+														PxsMaterialManager* materialManager, IG::SimpleIslandManager& islandManager,
+														PxU64 contextID, PxReal maxBiasCoefficient, PxReal lengthScale, PxSceneFlags sceneFlags);
 
-	virtual								~DynamicsContext();
+	virtual								~DynamicsContext() {}
 
 	// Context
 	virtual	void						destroy()	PX_OVERRIDE;
-	virtual void						update(IG::SimpleIslandManager& simpleIslandManager, PxBaseTask* continuation, PxBaseTask* lostTouchTask,
-										PxvNphaseImplementationContext* nPhase, PxU32 maxPatchesPerCM, PxU32 maxArticulationLinks, PxReal dt, const PxVec3& gravity, PxBitMapPinned& changedHandleMap)	PX_OVERRIDE;
+	virtual void						update(	Cm::FlushPool& flushPool, PxBaseTask* continuation, PxBaseTask* postPartitioningTask, PxBaseTask* lostTouchTask,
+												PxvNphaseImplementationContext* nPhase, PxU32 maxPatchesPerCM, PxU32 maxArticulationLinks,
+												PxReal dt, const PxVec3& gravity, Cm::PinnableBitMap& changedHandleMap)	PX_OVERRIDE;
 	virtual void						mergeResults()	PX_OVERRIDE;
 	virtual void						setSimulationController(PxsSimulationController* simulationController )	PX_OVERRIDE	{ mSimulationController = simulationController; }
 	virtual PxSolverType::Enum			getSolverType()	const	PX_OVERRIDE	{ return PxSolverType::ePGS;	}
 	//~Context
 
-	/**
-	\brief Allocates and returns a thread context object.
-	\return A thread context.
-	*/
-	PX_FORCE_INLINE ThreadContext*		getThreadContext()	{ return mThreadContextPool.get();	}
-
-	/**
-	\brief Returns a thread context to the thread context pool.
-	\param[in] context The thread context to return to the thread context pool. 
-	*/
-					void				putThreadContext(ThreadContext* context)	{ mThreadContextPool.put(context);	}
-
-	PX_FORCE_INLINE Cm::FlushPool&		getTaskPool()					{ return mTaskPool;			}
-	PX_FORCE_INLINE ThresholdStream&	getThresholdStream()			{ return *mThresholdStream;	}
-	PX_FORCE_INLINE PxvSimStats&		getSimStats()					{ return mSimStats;			}
-	PX_FORCE_INLINE	PxU32				getKinematicCount()		const	{ return mKinematicCount;	}
-
 					void				updatePostKinematic(IG::SimpleIslandManager& simpleIslandManager, PxBaseTask* continuation, PxBaseTask* lostTouchTask, PxU32 maxLinks);
+
+	PX_FORCE_INLINE bool				solveFrictionEveryIteration() const { return mSolveFrictionEveryIteration; }
+
+	PX_FORCE_INLINE const Dy::BiasCoefficientCollection& getBiasCoefficients() const { return mBiasCoefficients; }
+
 protected:
 
 #if PX_ENABLE_SIM_STATS
@@ -192,17 +154,11 @@ protected:
 	*/
 	void								computeUnconstrainedVelocity(PxsRigidBody* atom)	const;
 
-	/**
-	\brief fills in a PxSolverConstraintDesc from an indexed interaction
-	\param[in,out] desc The PxSolverConstraintDesc
-	\param[in] constraint The PxsIndexedInteraction
-	*/
-	void								setDescFromIndices(PxSolverConstraintDesc& desc, const IG::IslandSim& islandSim,
-										const PxsIndexedInteraction& constraint, PxU32 solverBodyOffset);
+	void								setDescFromIndices_Contacts(PxSolverConstraintDesc& desc, const IG::IslandSim& islandSim,
+																	const PxsIndexedInteraction& constraint, PxU32 solverBodyOffset);
 
-
-	void								setDescFromIndices(PxSolverConstraintDesc& desc, IG::EdgeIndex edgeIndex,
-											const IG::SimpleIslandManager& islandManager, PxU32* bodyRemapTable, PxU32 solverBodyOffset);
+	void								setDescFromIndices_Constraints(	PxSolverConstraintDesc& desc, const IG::IslandSim& islandSim, IG::EdgeIndex edgeIndex,
+																		const PxU32* bodyRemapTable, PxU32 solverBodyOffset);
 
 	/**
 	\brief Compute the unconstrained velocity for set of bodies in parallel. This function may spawn additional tasks.
@@ -238,36 +194,18 @@ protected:
 	\param[in] params Solver parameter structure
 	*/
 
-	void								solveParallel(SolverIslandParams& params, IG::IslandSim& islandSim, Cm::SpatialVectorF* deltaV, Dy::ErrorAccumulatorEx* errorAccumulator);
+	void								solveParallel(SolverIslandParams& params, IG::IslandSim& islandSim, Cm::SpatialVectorF* deltaV);
 
 	void								integrateCoreParallel(SolverIslandParams& params, Cm::SpatialVectorF* deltaV, IG::IslandSim& islandSim);
 
 	/**
-	\brief Resets the thread contexts
-	*/
-	void									resetThreadContexts();
-
-	/**
-	\brief Returns the scratch memory allocator.
-	\return The scratch memory allocator.
-	*/
-	PX_FORCE_INLINE PxcScratchAllocator&	getScratchAllocator() { return mScratchAllocator; }
-
-	//Data
-
-	/**
 	\brief Body to represent the world static body.
 	*/
-	PX_ALIGN(16, PxSolverBody				mWorldSolverBody);
+	PX_ALIGN(16, PxSolverBody			mWorldSolverBody);
 	/**
 	\brief Body data to represent the world static body.
 	*/
-	PX_ALIGN(16, PxSolverBodyData			mWorldSolverBodyData);
-
-	/**
-	\brief A thread context pool
-	*/
-	PxcThreadCoherentCache<ThreadContext, PxcNpMemBlockPool> mThreadContextPool;
+	PX_ALIGN(16, PxSolverBodyData		mWorldSolverBodyData);
 
 	/**
 	\brief Solver constraint desc array
@@ -285,31 +223,6 @@ protected:
 	SolverConstraintDescPool	mTempSolverConstraintDescPool;
 
 	/**
-	\brief An array of contact constraint batch headers
-	*/
-	PxArray<PxConstraintBatchHeader> mContactConstraintBatchHeaders;
-
-	/**
-	\brief Array of motion velocities for all bodies in the scene.
-	*/
-	PxArray<Cm::SpatialVector> mMotionVelocityArray;
-
-	/**
-	\brief Array of body core pointers for all bodies in the scene.
-	*/
-	PxArray<PxsBodyCore*>	mBodyCoreArray;
-
-	/**
-	\brief Array of rigid body pointers for all bodies in the scene.
-	*/
-	PxArray<PxsRigidBody*> mRigidBodyArray;
-
-	/**
-	\brief Array of articulation pointers for all articulations in the scene.
-	*/
-	PxArray<FeatherstoneArticulation*> mArticulationArray;
-
-	/**
 	\brief Global pool for solver bodies. Kinematic bodies are at the start, and then dynamic bodies
 	*/
 	SolverBodyPool			mSolverBodyPool;
@@ -318,42 +231,10 @@ protected:
 	*/
 	SolverBodyDataPool		mSolverBodyDataPool;
 
-	ThresholdStream*		mExceededForceThresholdStream[2]; //this store previous and current exceeded force thresholdStream	
+	Dy::BiasCoefficientCollection mBiasCoefficients;
 
-	PxArray<PxU32>		mExceededForceThresholdStreamMask;
-
-	/**
-	\brief Interface to the solver core.
-	\note We currently only support PxsSolverCoreSIMD. Other cores may be added in future releases.
-	*/
-	SolverCore*				mSolverCore[PxFrictionType::eFRICTION_COUNT];
-
-	PxArray<PxU32>		mSolverBodyRemapTable;				//Remaps from the "active island" index to the index within a solver island
-
-	PxArray<PxU32>		mNodeIndexArray;					//island node index
-
-	PxArray<PxsIndexedContactManager> mContactList;
-	
-	/**
-	\brief The total number of kinematic bodies in the scene
-	*/
-	PxU32						mKinematicCount;
-
-	/**
-	\brief Atomic counter for the number of threshold stream elements.
-	*/
-	PxI32						mThresholdStreamOut;
-
-	PxsMaterialManager*			mMaterialManager;
-
-	PxsContactManagerOutputIterator mOutputIterator;
-	
 private:
-	//private:
-	PxcScratchAllocator&			mScratchAllocator;
-	Cm::FlushPool&					mTaskPool;
-	PxTaskManager*					mTaskManager;
-	PxU32							mCurrentIndex; // this is the index point to the current exceeded force threshold stream
+	const bool	mSolveFrictionEveryIteration;
 
 	protected:
 
@@ -362,6 +243,7 @@ private:
 	friend class PxsSolverSetupConstraintsTask;
 	friend class PxsSolverCreateFinalizeConstraintsTask;	
 	friend class PxsSolverConstraintPartitionTask;
+	friend class PxsSolverPartitionAndCreateFinalizeConstraintsTask;
 	friend class PxsSolverSetupSolveTask;
 	friend class PxsSolverIntegrateTask;
 	friend class PxsSolverEndTask;

@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -36,6 +36,7 @@
 #include "geometry/PxTriangleMeshGeometry.h"
 #include "geometry/PxHeightFieldGeometry.h"
 #include "geometry/PxCustomGeometry.h"
+#include "geometry/PxConvexCoreGeometry.h"
 #include "GuInternal.h"
 #include "CmUtils.h"
 #include "GuConvexMesh.h"
@@ -46,6 +47,8 @@
 #include "GuHeightField.h"
 #include "GuConvexUtilsInternal.h"
 #include "GuBoxConversion.h"
+#include "GuConvexGeometry.h"
+#include "GuConvexSupport.h"
 
 using namespace physx;
 using namespace Gu;
@@ -394,6 +397,16 @@ void Gu::computeBounds(PxBounds3& bounds, const PxGeometry& geometry, const PxTr
 		}
 		break;
 
+		case PxGeometryType::eCONVEXCORE:
+		{
+			Gu::ConvexShape s;
+			Gu::makeConvexShape(geometry, pose, s);
+			bounds = s.computeBounds();
+			bounds.fattenFast(contactOffset);
+			bounds.scaleFast(inflation);
+		}
+		break;
+
 		case PxGeometryType::eCONVEXMESH:
 		{
 			const PxConvexMeshGeometry& shape = static_cast<const PxConvexMeshGeometry&>(geometry);
@@ -428,7 +441,7 @@ void Gu::computeBounds(PxBounds3& bounds, const PxGeometry& geometry, const PxTr
 		break;
 
 		case PxGeometryType::eTETRAHEDRONMESH:
-		{		
+		{
 			const PxTetrahedronMeshGeometry& shape = static_cast<const PxTetrahedronMeshGeometry&>(geometry);
 			computeMeshBounds(bounds, contactOffset, inflation, pose, &static_cast<const Gu::TetrahedronMesh*>(shape.tetrahedronMesh)->getPaddedBounds(), PxMeshScale());
 		}
@@ -438,13 +451,6 @@ void Gu::computeBounds(PxBounds3& bounds, const PxGeometry& geometry, const PxTr
 		{
 			// implement!
 			PX_ASSERT(0);			
-		}
-		break;
-		
-		case PxGeometryType::eHAIRSYSTEM:
-		{
-			// jcarius: Hairsystem bounds only available on GPU
-			bounds.setEmpty();
 		}
 		break;
 
@@ -509,8 +515,6 @@ static PX_FORCE_INLINE void computeMinMaxBounds(PxBounds3* PX_RESTRICT bounds, c
 
 ShapeData::ShapeData(const PxGeometry& g, const PxTransform& t, PxReal inflation)
 {
-	using namespace physx::aos;
-
 	// PT: this cast to matrix is already done in GeometryUnion::computeBounds (e.g. for boxes). So we do it first,
 	// then we'll pass the matrix directly to computeBoundsShapeData, to avoid the double conversion.
 	const bool isOBB = PxAbs(t.q.w) < 0.999999f;
@@ -578,6 +582,15 @@ ShapeData::ShapeData(const PxGeometry& g, const PxTransform& t, PxReal inflation
 
 			mGuBox.extents	= shape.halfExtents;	// PT: TODO: use SIMD
 			mPrunerBoxGeomExtents = shape.halfExtents*SQ_PRUNER_INFLATION;
+		}
+		break;
+
+		case PxGeometryType::eCONVEXCORE:
+		{
+			PxBounds3 bounds; Gu::computeBounds(bounds, g, t, inflation, SQ_PRUNER_INFLATION);
+			mPrunerInflatedAABB.minimum = bounds.minimum;
+			mPrunerInflatedAABB.maximum = bounds.maximum;
+			mGuBox.extents = mPrunerBoxGeomExtents = bounds.getExtents();
 		}
 		break;
 

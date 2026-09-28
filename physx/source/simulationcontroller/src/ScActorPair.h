@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -37,7 +37,8 @@
 #include "foundation/PxPreprocessor.h"
 #include "foundation/PxSimpleTypes.h"
 #if PX_SUPPORT_GPU_PHYSX
-#include "ScSoftBodySim.h"
+#include "ScDeformableSurfaceSim.h"
+#include "ScDeformableVolumeSim.h"
 #endif
 
 
@@ -144,7 +145,7 @@ namespace Sc
 
 		PX_FORCE_INLINE void			createContactReportData(NPhaseCore&);
 
-		PX_FORCE_INLINE	void			convert(ActorPair& aPair) { PX_ASSERT(!aPair.isReportPair()); setTouchCount(aPair.getTouchCount()); mRefCount = aPair.getRefCount(); }
+		PX_FORCE_INLINE	void			convert(const ActorPair& aPair) { PX_ASSERT(!aPair.isReportPair()); setTouchCount(aPair.getTouchCount()); mRefCount = aPair.getRefCount(); }
 
 		PX_FORCE_INLINE static ActorPairReport& cast(ActorPair& aPair) { PX_ASSERT(aPair.isReportPair()); return static_cast<ActorPairReport&>(aPair); }
 
@@ -227,15 +228,19 @@ PX_FORCE_INLINE void Sc::ActorPairReport::createContactReportData(NPhaseCore& np
 		reportData->mActorBID = mActorB.getActorID();
 
 #if PX_SUPPORT_GPU_PHYSX
-		if (mActorA.getActorType() == PxActorType::eSOFTBODY)
-			reportData->mPxActorA = static_cast<const SoftBodyCore&>(actorCoreA).getPxActor();
+		if (mActorA.getActorType() == PxActorType::eDEFORMABLE_VOLUME)
+			reportData->mPxActorA = static_cast<const DeformableVolumeCore&>(actorCoreA).getPxActor();
+		else if (mActorA.getActorType() == PxActorType::eDEFORMABLE_SURFACE)
+			reportData->mPxActorA = static_cast<const DeformableSurfaceCore&>(actorCoreA).getPxActor();
 		else
 #endif
 			reportData->mPxActorA = static_cast<const RigidCore&>(actorCoreA).getPxActor();
 
 #if PX_SUPPORT_GPU_PHYSX
-		if (mActorA.getActorType() == PxActorType::eSOFTBODY)
-			reportData->mPxActorB = static_cast<const SoftBodyCore&>(actorCoreB).getPxActor();
+		if (mActorB.getActorType() == PxActorType::eDEFORMABLE_VOLUME)
+			reportData->mPxActorB = static_cast<const DeformableVolumeCore&>(actorCoreB).getPxActor();
+		else if (mActorB.getActorType() == PxActorType::eDEFORMABLE_SURFACE)
+			reportData->mPxActorB = static_cast<const DeformableSurfaceCore&>(actorCoreB).getPxActor();
 		else
 #endif
 			reportData->mPxActorB = static_cast<const RigidCore&>(actorCoreB).getPxActor();

@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -224,7 +224,7 @@ bool AABBPruner::overlap(const ShapeData& queryVolume, PrunerOverlapCallback& pc
 			case PxGeometryType::eBOX:
 			{
 				if(queryVolume.isOBB())
-				{	
+				{
 					const DefaultOBBAABBTest test(queryVolume);
 					again = AABBTreeOverlap<true, OBBAABBTest, AABBTree, BVHNode, OverlapCallbackAdapter>()(mPool.getCurrentAABBTreeBounds(), *mAABBTree, test, pcb);
 				}
@@ -250,12 +250,20 @@ bool AABBPruner::overlap(const ShapeData& queryVolume, PrunerOverlapCallback& pc
 			}
 			break;
 
+			case PxGeometryType::eCONVEXCORE:
+			{
+				const DefaultOBBAABBTest test(queryVolume);
+				again = AABBTreeOverlap<true, OBBAABBTest, AABBTree, BVHNode, OverlapCallbackAdapter>()(mPool.getCurrentAABBTreeBounds(), *mAABBTree, test, pcb);
+			}
+			break;
+
 			case PxGeometryType::eCONVEXMESH:
 			{
 				const DefaultOBBAABBTest test(queryVolume);
 				again = AABBTreeOverlap<true, OBBAABBTest, AABBTree, BVHNode, OverlapCallbackAdapter>()(mPool.getCurrentAABBTreeBounds(), *mAABBTree, test, pcb);
 			}
 			break;
+
 		default:
 			PX_ALWAYS_ASSERT_MESSAGE("unsupported overlap query volume geometry type");
 		}

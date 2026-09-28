@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -32,12 +32,14 @@
 #define OMNI_PVD_INVALID_HANDLE 0
 
 #define OMNI_PVD_VERSION_MAJOR 0
-#define OMNI_PVD_VERSION_MINOR 3
+#define OMNI_PVD_VERSION_MINOR 4
 #define OMNI_PVD_VERSION_PATCH 0
 
 ////////////////////////////////////////////////////////////////////////////////
 // Versions so far : (major, minor, patch), top one is newest
 //
+// [0, 4,  0]
+//   add new eRECORD_MESSAGE command to record messages in the OVD stream.
 // [0, 3,  0]
 //   writes/read out the base class handle in the class registration call
 //   backwards compatible with [0, 2, 0] and [0, 1, 42]

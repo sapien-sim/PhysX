@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.
 
@@ -30,6 +30,7 @@
 #define PX_WINDOWS_INTRINSICS_H
 
 #include "foundation/PxAssert.h"
+#include <string.h>
 
 // this file is for internal intrinsics - that is, intrinsics that are used in
 // cross platform code but do not appear in the API
@@ -37,6 +38,10 @@
 #if !PX_WINDOWS_FAMILY
 #error "This file should only be included by Windows builds!!"
 #endif
+
+#pragma intrinsic(memcmp)
+#pragma intrinsic(memcpy)
+#pragma intrinsic(memset)
 
 #pragma warning(push)
 //'symbol' is not defined as a preprocessor macro, replacing with '0' for 'directives'

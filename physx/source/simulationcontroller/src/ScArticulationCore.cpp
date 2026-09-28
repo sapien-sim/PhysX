@@ -22,22 +22,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
-
 
 #include "ScArticulationCore.h"
 
 #include "ScPhysics.h"
-#include "ScBodyCore.h"
-#include "ScBodySim.h"
 #include "ScArticulationSim.h"
 
 using namespace physx;
 
-Sc::ArticulationCore::ArticulationCore() :
-	mSim(NULL)
+Sc::ArticulationCore::ArticulationCore() : mSim(NULL)
 {
 	const PxTolerancesScale& scale = Physics::getInstance().getTolerancesScale();
 
@@ -46,8 +42,6 @@ Sc::ArticulationCore::ArticulationCore() :
 	mCore.freezeThreshold			= 5e-6f * scale.speed * scale.speed;
 	mCore.wakeCounter				= Physics::sWakeCounterOnCreation;
 	mCore.gpuRemapIndex				= 0xffffffff;
-	mCore.maxLinearVelocity			= 1e+6f;
-	mCore.maxAngularVelocity		= 1e+6f;
 }
 
 Sc::ArticulationCore::~ArticulationCore()
@@ -75,26 +69,6 @@ void Sc::ArticulationCore::setWakeCounter(const PxReal v)
 #endif
 }
 
-void Sc::ArticulationCore::setMaxLinearVelocity(const PxReal v)
-{
-	mCore.maxLinearVelocity = v;
-
-	if (mSim)
-	{
-		mSim->setArticulationDirty(Dy::ArticulationDirtyFlag::eDIRTY_VELOCITY_LIMITS);
-	}
-}
-
-void Sc::ArticulationCore::setMaxAngularVelocity(const PxReal v)
-{
-	mCore.maxAngularVelocity = v;
-
-	if (mSim)
-	{
-		mSim->setArticulationDirty(Dy::ArticulationDirtyFlag::eDIRTY_VELOCITY_LIMITS);
-	}
-}
-
 bool Sc::ArticulationCore::isSleeping() const
 {
 	return mSim ? mSim->isSleeping() : (mCore.wakeCounter == 0.0f);
@@ -104,11 +78,8 @@ void Sc::ArticulationCore::wakeUp(PxReal wakeCounter)
 {
 	mCore.wakeCounter = wakeCounter;
 
-	if (mSim)
-	{
-		Dy::FeatherstoneArticulation* arti = static_cast<Dy::FeatherstoneArticulation*>(mSim->getLowLevelArticulation());
-		arti->setGpuDirtyFlag(Dy::ArticulationDirtyFlag::eDIRTY_WAKECOUNTER);
-	}
+	if(mSim)
+		mSim->setGpuDirtyFlag(Dy::ArticulationDirtyFlag::eDIRTY_WAKECOUNTER);
 
 #if PX_DEBUG
 	if(mSim)
@@ -122,8 +93,10 @@ void Sc::ArticulationCore::putToSleep()
 
 	if (mSim)
 	{
-		Dy::FeatherstoneArticulation* arti = static_cast<Dy::FeatherstoneArticulation*>(mSim->getLowLevelArticulation());
-		arti->setGpuDirtyFlag(Dy::ArticulationDirtyFlag::eDIRTY_WAKECOUNTER);
+		// Call the ArticulationSim's putToSleep which zeros velocities
+		mSim->putToSleep();
+		
+		mSim->setGpuDirtyFlag(Dy::ArticulationDirtyFlag::eDIRTY_WAKECOUNTER);
 	}
 
 #if PX_DEBUG
@@ -177,7 +150,6 @@ void Sc::ArticulationCore::copyInternalStateToCache(PxArticulationCache& cache, 
 	if(mSim)
 		mSim->copyInternalStateToCache(cache, flag, isGpuSimEnabled);
 }
-
 
 void Sc::ArticulationCore::packJointData(const PxReal* maximum, PxReal* reduced) const
 {
@@ -233,15 +205,15 @@ void Sc::ArticulationCore::computeDenseJacobian(PxArticulationCache& cache, PxU3
 		mSim->computeDenseJacobian(cache, nRows, nCols);
 }
 
-void Sc::ArticulationCore::computeCoefficientMatrix(PxArticulationCache& cache) const
+void Sc::ArticulationCore::computeCoefficientMatrix_Deprecated(PxArticulationCache& cache) const
 {
 	if(mSim)
-		mSim->computeCoefficientMatrix(cache);
+		mSim->computeCoefficientMatrix_Deprecated(cache);
 }
 
-bool Sc::ArticulationCore::computeLambda(PxArticulationCache& cache, PxArticulationCache& initialState, const PxReal* const jointTorque, const PxVec3 gravity, const PxU32 maxIter) const
+bool Sc::ArticulationCore::computeLambda_Deprecated(PxArticulationCache& cache, PxArticulationCache& initialState, const PxReal* const jointTorque, const PxVec3 gravity, const PxU32 maxIter) const
 {
-	return mSim ? mSim->computeLambda(cache, initialState, jointTorque, gravity, maxIter) : false;
+	return mSim ? mSim->computeLambda_Deprecated(cache, initialState, jointTorque, gravity, maxIter) : false;
 }
 
 void Sc::ArticulationCore::computeGeneralizedMassMatrix(PxArticulationCache& cache) const
@@ -250,9 +222,20 @@ void Sc::ArticulationCore::computeGeneralizedMassMatrix(PxArticulationCache& cac
 		mSim->computeGeneralizedMassMatrix(cache);
 }
 
-PxU32 Sc::ArticulationCore::getCoefficientMatrixSize() const
+PxVec3 Sc::ArticulationCore::computeArticulationCOM(const bool rootFrame) const
 {
-	return mSim ? mSim->getCoefficientMatrixSize() : 0xFFFFFFFFu;
+	return mSim ? mSim->computeArticulationCOM(rootFrame) : PxVec3(0.0f);
+}
+
+void Sc::ArticulationCore::computeCentroidalMomentumMatrix(PxArticulationCache& cache) const
+{
+	if(mSim)
+		mSim->computeCentroidalMomentumMatrix(cache);
+}
+
+PxU32 Sc::ArticulationCore::getCoefficientMatrixSize_Deprecated() const
+{
+	return mSim ? mSim->getCoefficientMatrixSize_Deprecated() : 0xFFFFFFFFu;
 }
 
 PxSpatialVelocity Sc::ArticulationCore::getLinkAcceleration(const PxU32 linkId, const bool isGpuSimEnabled) const

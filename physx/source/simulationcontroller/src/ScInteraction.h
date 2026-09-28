@@ -22,14 +22,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #ifndef SC_INTERACTION_H
 #define SC_INTERACTION_H
 
-#include "foundation/Px.h"
 #include "ScInteractionFlags.h"
 #include "ScActorSim.h"
 #include "foundation/PxUserAllocated.h"
@@ -60,9 +59,7 @@ namespace Sc
 	// Interactions are used for connecting actors into activation groups. An interaction always connects exactly two actors. 
 	// An interaction is implicitly active if at least one of the two actors it connects is active.
 
-	// PT: we need PxUserAllocated only for ArticulationJointSim, which for some reason doesn't follow the same design as the others.
-	// The others are allocated from pools in NphaseCore.
-	class Interaction : public PxUserAllocated
+	class Interaction
 	{
 		PX_NOCOPY(Interaction)
 										Interaction(ActorSim& actor0, ActorSim& actor1, InteractionType::Enum interactionType, PxU8 flags);
@@ -129,7 +126,7 @@ namespace Sc
 	protected:
 		const			PxU8			mInteractionType;	// PT: stored on a byte to save space, should be InteractionType enum, 5/6 bits needed here
 						PxU8			mInteractionFlags;	// PT: 6 bits needed here, see InteractionFlag enum
-						PxU8			mDirtyFlags;		// PT: 6 bits needed here, see InteractionDirtyFlag enum
+						PxU8			mDirtyFlags;		// PT: 5 bits needed here, see InteractionDirtyFlag enum
 						PxU8			mPadding8;
 	};
 

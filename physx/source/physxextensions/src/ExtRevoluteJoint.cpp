@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -128,7 +128,7 @@ void RevoluteJoint::setDriveGearRatio(PxReal gearRatio)
 	OMNI_PVD_SET(OMNI_PVD_CONTEXT_HANDLE, PxRevoluteJoint, driveGearRatio, static_cast<PxRevoluteJoint&>(*this), gearRatio)
 }
 
-PxRevoluteJointFlags RevoluteJoint::getRevoluteJointFlags(void)	const
+PxRevoluteJointFlags RevoluteJoint::getRevoluteJointFlags()	const
 { 
 	return data().jointFlags; 
 }

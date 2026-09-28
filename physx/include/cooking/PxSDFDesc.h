@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -62,7 +62,8 @@ namespace physx
 	};
 
 	/**
-	\brief A structure describing signed distance field for mesh.
+	\brief A structure describing signed distance fields (SDF) for triangle meshes. SDF colliders only work when the GPU solver is 
+	used to run the simulation. The GPU solver is enabled by setting the flag PxSceneFlag::eENABLE_GPU_DYNAMICS in the scene description.
 	*/
 	class PxSDFDesc
 	{

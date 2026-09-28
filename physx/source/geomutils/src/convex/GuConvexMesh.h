@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -30,7 +30,6 @@
 #define GU_CONVEX_MESH_H
 
 #include "foundation/PxBitAndData.h"
-#include "common/PxMetaData.h"
 #include "geometry/PxConvexMesh.h"
 #include "geometry/PxConvexMeshGeometry.h"
 #include "foundation/PxUserAllocated.h"
@@ -97,13 +96,12 @@ namespace Gu
 							 					ConvexMesh(PxBaseFlags baseFlags) : PxConvexMesh(baseFlags), mHullData(PxEmpty), mNb(PxEmpty) 
 												{
 													mNb.setBit();
-												}									
+												}
 
 						void					preExportDataReset() { Cm::RefCountable_preExportDataReset(*this); }
 		 virtual		void					exportExtraData(PxSerializationContext& stream);
 						void					importExtraData(PxDeserializationContext& context);
 		PX_PHYSX_COMMON_API static	ConvexMesh*	createObject(PxU8*& address, PxDeserializationContext& context);
-		PX_PHYSX_COMMON_API static	void		getBinaryMetaData(PxOutputStream& stream);
 						void					resolveReferences(PxDeserializationContext&)				{}
 		virtual			void					requiresObjects(PxProcessPxBaseCallback&){}
 	//~PX_SERIALIZATION
@@ -114,26 +112,26 @@ namespace Gu
 						bool					load(PxInputStream& stream);
 
 		// PxBase
-		virtual			void					onRefCountZero();
+		virtual			void					onRefCountZero() PX_OVERRIDE;
 		//~PxBase
 
 		// PxRefCounted
-		virtual			PxU32					getReferenceCount()								const;
-		virtual			void					acquireReference();
+		virtual			PxU32					getReferenceCount()								const PX_OVERRIDE;
+		virtual			void					acquireReference() PX_OVERRIDE;
 		//~PxRefCounted
 
 		// PxConvexMesh										
-		virtual			void					release();
-		virtual			PxU32					getNbVertices()									const	{ return mHullData.mNbHullVertices;		}
-		virtual			const PxVec3*			getVertices()									const	{ return mHullData.getHullVertices();	}
-		virtual			const PxU8*				getIndexBuffer()								const	{ return mHullData.getVertexData8();	}
-		virtual			PxU32					getNbPolygons()									const	{ return mHullData.mNbPolygons;			}
-		virtual			bool					getPolygonData(PxU32 i, PxHullPolygon& data)	const;
-		virtual			bool					isGpuCompatible()								const;						
+		virtual			void					release() PX_OVERRIDE;
+		virtual			PxU32					getNbVertices()									const PX_OVERRIDE { return mHullData.mNbHullVertices;	}
+		virtual			const PxVec3*			getVertices()									const PX_OVERRIDE { return mHullData.getHullVertices();	}
+		virtual			const PxU8*				getIndexBuffer()								const PX_OVERRIDE { return mHullData.getVertexData8();	}
+		virtual			PxU32					getNbPolygons()									const PX_OVERRIDE { return mHullData.mNbPolygons;		}
+		virtual			bool					getPolygonData(PxU32 i, PxHullPolygon& data)	const PX_OVERRIDE;
+		virtual			bool					isGpuCompatible()								const PX_OVERRIDE;						
 
-		virtual			void					getMassInformation(PxReal& mass, PxMat33& localInertia, PxVec3& localCenterOfMass)	const;
-		virtual			PxBounds3				getLocalBounds()								const;
-		virtual			const PxReal*			getSDF() const;
+		virtual			void					getMassInformation(PxReal& mass, PxMat33& localInertia, PxVec3& localCenterOfMass)	const PX_OVERRIDE;
+		virtual			PxBounds3				getLocalBounds()								const PX_OVERRIDE;
+		virtual			const PxReal*			getSDF() const PX_OVERRIDE;
 		
 		//~PxConvexMesh
 
@@ -148,7 +146,7 @@ namespace Gu
 		PX_FORCE_INLINE	ConvexHullData&			getHull()												{ return mHullData;						}
 		PX_FORCE_INLINE	const CenterExtents&	getLocalBoundsFast()							const	{ return mHullData.mAABB;				}
 		PX_FORCE_INLINE	PxReal					getMass()										const	{ return mMass;							}
-		PX_FORCE_INLINE void					setMass(PxReal mass)									{ mMass = mass;							}		
+		PX_FORCE_INLINE void					setMass(PxReal mass)									{ mMass = mass;							}
 		PX_FORCE_INLINE	const PxMat33&			getInertia()									const	{ return mInertia;						}
 		PX_FORCE_INLINE void					setInertia(const PxMat33& inertia)						{ mInertia = inertia;					}
 

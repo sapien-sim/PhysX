@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.
 
@@ -781,6 +781,8 @@ void BVHPartialRefitData::markNodeForRefit(TreeNodeIndex nodeIndex)
 
 	if(!refitBitmask->getBits())
 		refitBitmask->init(mNbNodes);
+	else
+		refitBitmask->resize(mNbNodes);   // PT: AI-suggested fix for https://github.com/NVIDIAGameWorks/PhysX/issues/680
 
 	PX_ASSERT(nodeIndex<mNbNodes);
 
@@ -1144,7 +1146,7 @@ void AABBTree::addRuntimeChilds(PxU32& nodeIndex, const AABBTreeMergeData& treeP
 	// copy the src tree into dest tree nodes, update its data
 	for (PxU32 i = 0; i < treeParams.mNbNodes; i++)
 	{
-		PX_ASSERT(nodeIndex < mNbNodes + treeParams.mNbNodes  + 1);
+		PX_ASSERT(nodeIndex < mNbNodes + treeParams.mNbNodes + 1);
 		mNodes[nodeIndex].mBV = treeParams.mNodes[i].mBV;
 		if (treeParams.mNodes[i].isLeaf())
 		{
@@ -1371,7 +1373,7 @@ void AABBTree::mergeTree(const AABBTreeMergeData& treeParams)
 	for (PxU32 i = 0; i < treeParams.mNbIndices; i++)
 	{
 		mIndices[mNbIndices + i] = treeParams.mIndicesOffset + treeParams.mIndices[i];
-	}	
+	}
 
 	// check the mRefitBitmask if we fit all the new nodes
 	mRefitBitmask.resize(mNbNodes + treeParams.mNbNodes + 1);	
@@ -1386,13 +1388,13 @@ void AABBTree::mergeTree(const AABBTreeMergeData& treeParams)
 		traverseRuntimeNode(mNodes[0], treeParams, 0);
 	}
 	else
-	{				
+	{
 		if(mNodes[0].isLeaf())
-		{			
+		{
 			mergeRuntimeLeaf(mNodes[0], treeParams, 0);
 		}
 		else		
-		{			
+		{
 			mergeRuntimeNode(mNodes[0], treeParams, 0);		
 		}
 
@@ -1435,3 +1437,43 @@ void AABBTree::mergeTree(const AABBTreeMergeData& treeParams)
 	mNbIndices += treeParams.mNbIndices;
 }
 
+void TinyBVH::constructFromTriangles(const PxU32* triangles, const PxU32 numTriangles, const PxVec3* points,
+	TinyBVH& result, PxF32 enlargement)
+{
+	//Computes a bounding box for every triangle in triangles
+	Gu::AABBTreeBounds boxes;
+	boxes.init(numTriangles);
+	for (PxU32 i = 0; i < numTriangles; ++i)
+	{
+		const PxU32* tri = &triangles[3 * i];
+		PxBounds3 box = PxBounds3::empty();
+		box.include(points[tri[0]]);
+		box.include(points[tri[1]]);
+		box.include(points[tri[2]]);
+		box.fattenFast(enlargement);
+		boxes.getBounds()[i] = box;
+	}
+
+	Gu::buildAABBTree(numTriangles, boxes, result.mTree);
+}
+
+void TinyBVH::constructFromTetrahedra(const PxU32* tetrahedra, const PxU32 numTetrahedra, const PxVec3* points,
+	TinyBVH& result, PxF32 enlargement)
+{
+	//Computes a bounding box for every tetrahedron in tetrahedra
+	Gu::AABBTreeBounds boxes;
+	boxes.init(numTetrahedra);
+	for (PxU32 i = 0; i < numTetrahedra; ++i)
+	{
+		const PxU32* tri = &tetrahedra[4 * i];
+		PxBounds3 box = PxBounds3::empty();
+		box.include(points[tri[0]]);
+		box.include(points[tri[1]]);
+		box.include(points[tri[2]]);
+		box.include(points[tri[3]]);
+		box.fattenFast(enlargement);
+		boxes.getBounds()[i] = box;
+	}
+
+	Gu::buildAABBTree(numTetrahedra, boxes, result.mTree);
+}

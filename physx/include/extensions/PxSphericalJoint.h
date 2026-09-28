@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -75,10 +75,9 @@ PX_FLAGS_OPERATORS(PxSphericalJointFlag::Enum, PxU16)
 
  The position of the joint on each actor is specified by the origin of the body's joint frame.
  
- A spherical joint may have a cone limit, to restrict the motion to within a certain range. In
- addition, the bodies may be projected together if the distance between them exceeds a given threshold.
+ A spherical joint may have a cone limit, to restrict the motion to within a certain range.
  
- Projection, drive and limits are activated by setting the appropriate flags on the joint.
+ Dirve and limits are activated by setting the appropriate flags on the joint.
 
  \see PxRevoluteJointCreate() PxJoint
 */
@@ -150,7 +149,7 @@ public:
 	/**
 	\brief Returns string name of PxSphericalJoint, used for serialization
 	*/
-	virtual	const char*			getConcreteTypeName() const { return "PxSphericalJoint"; }
+	virtual	const char*			getConcreteTypeName() const	PX_OVERRIDE	{ return "PxSphericalJoint"; }
 
 protected:
 
@@ -169,7 +168,7 @@ protected:
 	/**
 	\brief Returns whether a given type name matches with the type of this instance
 	*/
-	virtual	bool				isKindOf(const char* name) const { PX_IS_KIND_OF(name, "PxSphericalJoint", PxJoint); }
+	virtual	bool				isKindOf(const char* name) const PX_OVERRIDE { PX_IS_KIND_OF(name, "PxSphericalJoint", PxJoint); }
 
 	//~serialization
 };

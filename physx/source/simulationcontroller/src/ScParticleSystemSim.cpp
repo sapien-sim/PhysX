@@ -22,43 +22,36 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 
 #include "foundation/PxPreprocessor.h"
 
 #if PX_SUPPORT_GPU_PHYSX
 
 #include "ScParticleSystemSim.h"
-#include "ScParticleSystemCore.h"
-#include "ScScene.h"
 
 using namespace physx;
-using namespace physx::Dy;
-
+using namespace Dy;
 
 Sc::ParticleSystemSim::ParticleSystemSim(ParticleSystemCore& core, Scene& scene) :
-	ActorSim(scene, core),
-	mShapeSim(*this, &core.getShapeCore())
+	GPUActorSim(scene, core, &core.getShapeCore())
 {
-	
+	createLowLevelVolume();
+
 	mLLParticleSystem = scene.createLLParticleSystem(this);
 
-	mNodeIndex = scene.getSimpleIslandManager()->addParticleSystem(mLLParticleSystem, false);
+	mNodeIndex = scene.getSimpleIslandManager()->addNode(false, false, IG::Node::ePARTICLESYSTEM_TYPE, mLLParticleSystem);
 
 	scene.getSimpleIslandManager()->activateNode(mNodeIndex);
-
 
 	//mCore.setSim(this);
 
 	mLLParticleSystem->setElementId(mShapeSim.getElementID());
 
 	PxParticleSystemGeometry geometry;
-	geometry.mSolverType = PxParticleSolverType::ePBD;
-
 	core.getShapeCore().setGeometry(geometry);
 	
-	PxsShapeCore* shapeCore = const_cast<PxsShapeCore*>(&core.getShapeCore().getCore());
-	mLLParticleSystem->setShapeCore(shapeCore);
+	mLLParticleSystem->setShapeCore(&core.getShapeCore());
 }
 
 Sc::ParticleSystemSim::~ParticleSystemSim()
@@ -73,19 +66,21 @@ Sc::ParticleSystemSim::~ParticleSystemSim()
 	mCore.setSim(NULL);
 }
 
-void Sc::ParticleSystemSim::updateBounds()
+void Sc::ParticleSystemSim::createLowLevelVolume()
 {
-	mShapeSim.updateBounds();
-}
+	//PX_ASSERT(getWorldBounds().isFinite());
 
-void Sc::ParticleSystemSim::updateBoundsInAABBMgr()
-{
-	mShapeSim.updateBoundsInAABBMgr();
-}
+	const PxU32 index = mShapeSim.getElementID();
 
-PxBounds3 Sc::ParticleSystemSim::getBounds() const
-{
-	return mShapeSim.getBounds();
+	if (!(static_cast<Sc::ParticleSystemSim&>(mShapeSim.getActor()).getCore().getFlags() & PxParticleFlag::eDISABLE_RIGID_COLLISION))
+	{
+		mScene.getBoundsArray().setBounds(PxBounds3(PxVec3(PX_MAX_BOUNDS_EXTENTS), PxVec3(-PX_MAX_BOUNDS_EXTENTS)), index);
+		mShapeSim.setInBroadPhase();
+	}
+	else
+		mScene.getAABBManager()->reserveSpaceForBounds(index);
+
+	addToAABBMgr(Bp::FilterType::PARTICLESYSTEM);
 }
 
 bool Sc::ParticleSystemSim::isSleeping() const

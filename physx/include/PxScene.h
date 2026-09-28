@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -38,13 +38,9 @@
 #include "PxClient.h"
 #include "task/PxTask.h"
 #include "PxArticulationFlag.h"
-#include "PxSoftBodyFlag.h"
-#include "PxHairSystemFlag.h"
-#include "PxActorData.h"
 #include "PxParticleSystemFlag.h"
-#include "PxParticleSolverType.h"
+
 #include "cudamanager/PxCudaTypes.h"
-#include "PxResidual.h"
 
 #include "pvd/PxPvdSceneClient.h"
 
@@ -65,9 +61,8 @@ struct PxContactPairHeader;
 
 class PxPvdSceneClient;
 
-class PxSoftBody;
-class PxFEMCloth;
-class PxHairSystem;
+class PxDeformableSurface;
+class PxDeformableVolume;
 class PxPBDParticleSystem;
 
 /**
@@ -161,6 +156,21 @@ class PxBroadPhaseCallback
 	\param[in] aggregate	Aggregate that left the broad-phase bounds
 	*/
 	virtual		void	onObjectOutOfBounds(PxAggregate& aggregate) = 0;
+};
+
+/**
+\brief Abstract base class for post-solve callback functionality.
+*/
+class PxPostSolveCallback
+{
+public:
+	/**
+	\brief Callback function called after a solve event.
+	\param startEvent CUDA event that should be waited for on the user stream. Once the event happened, the user can safely read the solver's results.
+	*/
+	virtual void onPostSolve(CUevent startEvent) = 0;
+
+	virtual ~PxPostSolveCallback() {}
 };
 
 /** 
@@ -516,16 +526,35 @@ class PxScene : public PxSceneSQSystem
 	virtual PxActor**		getActiveActors(PxU32& nbActorsOut) = 0;
 
 	/**
-	\brief Retrieve the number of soft bodies in the scene.
+	\brief Retrieve the number of deformable surfaces in the scene.
 
-	\return the number of soft bodies.
+	\return the number of deformable surfaces.
+
+	See getDeformableSurfaces()
+	*/
+	virtual PxU32				getNbDeformableSurfaces() const = 0;
+
+	/**
+	\brief Retrieve an array of all the deformable surfaces in the scene.
+
+	\param[out] userBuffer The buffer to write the deformable surface pointers to
+	\param[in] bufferSize Size of the provided user buffer
+	\param[in] startIndex Index of first deformable surface pointer to be retrieved
+	\return Number of deformable surfaces written to the buffer
+	*/
+	virtual PxU32				getDeformableSurfaces(PxDeformableSurface** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const = 0;
+
+	/**
+	\brief Retrieve the number of deformable volumes in the scene.
+
+	\return the number of deformable volumes.
 
 	\see getActors()
 	*/
-	virtual	PxU32				getNbSoftBodies() const = 0;
+	virtual	PxU32				getNbDeformableVolumes() const = 0;
 
 	/**
-	\brief Retrieve an array of all the soft bodies in the scene.
+	\brief Retrieve an array of all the deformable volumes in the scene.
 
 	\param[out] userBuffer The buffer to receive actor pointers.
 	\param[in] bufferSize Size of provided user buffer.
@@ -534,32 +563,7 @@ class PxScene : public PxSceneSQSystem
 
 	\see getNbActors()
 	*/
-	virtual	PxU32				getSoftBodies(PxSoftBody** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const = 0;
-
-	/**
-	\deprecated Use getNbPBDParticleSystems() instead.
-	\brief Retrieve the number of particle systems of the requested type in the scene.
-
-	\param[in] type The particle system type. See PxParticleSolverType. Only one type can be requested per function call.
-	\return the number particle systems.
-
-	See getPBDParticleSystems(), PxParticleSolverType
-	*/
-	PX_DEPRECATED virtual PxU32	getNbParticleSystems(PxParticleSolverType::Enum type) const = 0;
-
-	/**
-	\deprecated Use getPBDParticleSystems() instead.
-	\brief Retrieve an array of all the particle systems of the requested type in the scene.
-
-	\param[in] type The particle system type. See PxParticleSolverType. Only one type can be requested per function call.
-	\param[out] userBuffer The buffer to receive particle system pointers.
-	\param[in] bufferSize Size of provided user buffer.
-	\param[in] startIndex Index of first particle system pointer to be retrieved
-	\return Number of particle systems written to the buffer.
-
-	See getNbPBDParticleSystems(), PxParticleSolverType
-	*/
-	PX_DEPRECATED virtual PxU32	getParticleSystems(PxParticleSolverType::Enum type, class PxPBDParticleSystem** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const = 0;
+	virtual	PxU32				getDeformableVolumes(PxDeformableVolume** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const = 0;
 
 	/**
 	\brief Retrieve the number of particle systems of the requested type in the scene.
@@ -581,46 +585,6 @@ class PxScene : public PxSceneSQSystem
 	\see getNbPBDParticleSystems()
 	*/
 	virtual PxU32				getPBDParticleSystems(class PxPBDParticleSystem** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const = 0;
-
-	/**
-	\brief Retrieve the number of FEM cloths in the scene.
-	\warning Feature under development, only for internal usage.
-
-	\return the number of FEM cloths.
-
-	See getFEMCloths()
-	*/
-	virtual PxU32				getNbFEMCloths() const = 0;
-
-	/**
-	\brief Retrieve an array of all the FEM cloths in the scene.
-	\warning Feature under development, only for internal usage.
-
-	\param[out] userBuffer The buffer to write the FEM cloth pointers to
-	\param[in] bufferSize Size of the provided user buffer
-	\param[in] startIndex Index of first FEM cloth pointer to be retrieved
-	\return Number of FEM cloths written to the buffer
-	*/
-	virtual PxU32				getFEMCloths(PxFEMCloth** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const = 0;
-
-	/**
-	\brief Retrieve the number of hair systems in the scene.
-	\warning Feature under development, only for internal usage.
-	\return the number of hair systems
-	\see getActors()
-	*/
-	virtual	PxU32				getNbHairSystems() const = 0;
-
-	/**
-	\brief Retrieve an array of all the hair systems in the scene.
-	\warning Feature under development, only for internal usage.
-
-	\param[out] userBuffer The buffer to write the actor pointers to
-	\param[in] bufferSize Size of the provided user buffer
-	\param[in] startIndex Index of first actor pointer to be retrieved
-	\return Number of actors written to the buffer
-	*/
-	virtual	PxU32				getHairSystems(PxHairSystem** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const = 0;
 
 	/**
 	\brief Returns the number of articulations in the scene.
@@ -1324,9 +1288,12 @@ class PxScene : public PxSceneSQSystem
 
 	/**
 	\brief Return the friction model.
+
+	\deprecated Since only the patch friction model is supported now, the friction type option is obsolete.
+
 	\see PxFrictionType, PxSceneDesc::frictionType
 	*/
-	virtual PxFrictionType::Enum	getFrictionType() const = 0;
+	PX_DEPRECATED virtual PxFrictionType::Enum	getFrictionType() const = 0;
 
 	/**
 	\brief Return the solver model.
@@ -1709,251 +1676,20 @@ class PxScene : public PxSceneSQSystem
 	Each object of PxDirectGPUAPI is directly associated with a PxScene, and there is only one PxDirectGPUAPI object per scene.
 	*/
 	virtual 	PxDirectGPUAPI&	  getDirectGPUAPI() = 0;
-	
+
 	/**
-	\brief Provides a metric that describes how well the solver converged. The smaller the returned error, the more accurate the solution.
-
-	\note The scene flag eENABLE_SOLVER_RESIDUAL_REPORTING must be set, otherwise the residual will not be computed and the function will return zero.
-
-	\return The residual as a root mean squared or max value of the all corrections applied by the solver in the last position and in the last velocity iteration.
+	\brief Sets the post-solve callback for deformable surface GPU computations. Allows to schedule custom work to be done by the GPU as soon as possible after the deformable surface solver finishes.
+	\param postSolveCallback Pointer to the callback implementation.
 	*/
-	virtual		PxSceneResidual		getSolverResidual() const = 0;
+	virtual void setDeformableSurfaceGpuPostSolveCallback(PxPostSolveCallback* postSolveCallback) = 0;
+
+	/**
+	\brief Sets the post-solve callback for deformable volume GPU computations. Allows to schedule custom work to be done by the GPU as soon as possible after the deformable volume solver finishes.
+	\param postSolveCallback Pointer to the callback implementation.
+	*/
+	virtual void setDeformableVolumeGpuPostSolveCallback(PxPostSolveCallback* postSolveCallback) = 0;
 
 	void*	userData;	//!< user can assign this to whatever, usually to create a 1:1 relationship with a user object.
-
-	/* ALL DEPRECATED BELOW THIS! */
-
-	/**
-	\brief Copy GPU articulation data from the internal GPU buffer to a user-provided device buffer.
-	\param[in] data User-provided gpu data buffer which should be sized appropriately for the particular data that is requested. Further details provided in the user guide.
-	\param[in] index User-provided gpu index buffer. This buffer stores the articulation indices which the user wants to copy.
-	\param[in] dataType Enum specifying the type of data the user wants to read back from the articulations.
-	\param[in] nbCopyArticulations Number of articulations that data should be copied from.
-	\param[in] copyEvent User-provided event for the articulation stream to signal when the data copy to the user buffer has completed. Defaults to NULL, which means that the function will wait for the copy to finish before returning.
-	
-	\deprecated Use PxDirectGPUAPI::getArticulationData() instead.
-	*/
-	PX_DEPRECATED	virtual	void	copyArticulationData(void* data, void* index, PxArticulationGpuDataType::Enum dataType, const PxU32 nbCopyArticulations, CUevent copyEvent = NULL) = 0;
-	
-	/**
-	\brief Apply GPU articulation data from a user-provided device buffer to the internal GPU buffer.
-	\param[in] data User-provided gpu data buffer which should be sized appropriately for the particular data that is requested. Further details provided in the user guide.
-	\param[in] index User-provided gpu index buffer. This buffer stores the articulation indices which the user wants to write to.
-	\param[in] dataType Enum specifying the type of data the user wants to write to the articulations.
-	\param[in] nbUpdatedArticulations Number of articulations that data should be written to.
-	\param[in] waitEvent User-provided event for the articulation stream to wait for data. Defaults to NULL, which means the function will execute immediately.
-	\param[in] signalEvent User-provided event for the articulation stream to signal when the data read from the user buffer has completed. Defaults to NULL which means the function will wait for the copy to finish before returning.
-	
-	\deprecated Use PxDirectGPUAPI::setArticulationData() instead.
-	*/
-	PX_DEPRECATED	virtual	void	applyArticulationData(void* data, void* index, PxArticulationGpuDataType::Enum dataType, const PxU32 nbUpdatedArticulations, CUevent waitEvent = NULL, CUevent signalEvent = NULL) = 0;
-
-	/**
-	\brief Update link state for all articulations in the scene that have been updated using PxScene::applyArticulationData(). This function can be 
-	called by the user to propagate changes made to root transform/root velocity/joint position/joint velocities to be reflected in the link transform/velocity.
-	Calling this function will perform the kinematic update for all the articulations in the scene that have outstanding changes to at least one of the properties 
-	mentioned above. Calling this function will clear output calculated by the simulation, specifically link accelerations, link incoming joint forces, and
-	joint accelerations, for the articulations affected by the call.
-
-	\note Calling this function is not mandatory, as it will be called internally at the start of the simulation step for any outstanding changes.
-	
-	\note This function has to be called if the user wants to obtain correct link transforms and velocities using PxScene::copyArticulationData() after setting
-	joint positions, joint velocities, root link transform or root link velocity using PxScene::applyArticulationData().
-
-	\note This function only has an effect if the PxSceneFlag::eENABLE_DIRECT_GPU_API is raised and the user has manipulated articulation state 
-	using PxScene::applyArticulationData().
-	
-	\param[in] signalEvent User-provided event for the articulation stream to signal when the kinematic update has been completed. Defaults to NULL which means the function will wait for the operation to finish before returning.
-	
-	\deprecated Use PxDirectGPUAPI::computeArticulationData() instead.
-	*/
-	PX_DEPRECATED	virtual void	updateArticulationsKinematic(CUevent signalEvent = NULL) = 0;
-
-	/**
-	\brief Copy GPU softbody data from the internal GPU buffer to a user-provided device buffer.
-	\param[in] data User-provided gpu buffer containing a pointer to another gpu buffer for every softbody to process
-	\param[in] dataSizes The size of every buffer in bytes
-	\param[in] softBodyIndices User provided gpu index buffer. This buffer stores the softbody index which the user want to copy.
-	\param[in] maxSize The largest size stored in dataSizes. Used internally to decide how many threads to launch for the copy process.
-	\param[in] flag Flag defining which data the user wants to read back from the softbody system
-	\param[in] nbCopySoftBodies The number of softbodies to be copied.
-	\param[in] copyEvent User-provided event for the user to sync data. Defaults to NULL which means the function will wait for the copy to finish before returning.
-	
-	\deprecated There is no direct replacement. Most of the data is exposed in the PxSoftBody interface.
-	*/
-	PX_DEPRECATED	virtual	void	copySoftBodyData(void** data, void* dataSizes, void* softBodyIndices, PxSoftBodyGpuDataFlag::Enum flag, const PxU32 nbCopySoftBodies, const PxU32 maxSize, CUevent copyEvent = NULL) = 0;
-
-	/**
-	\brief Apply user-provided data to the internal softbody system.
-	\param[in] data User-provided gpu buffer containing a pointer to another gpu buffer for every softbody to process
-	\param[in] dataSizes The size of every buffer in bytes	
-	\param[in] softBodyIndices User provided gpu index buffer. This buffer stores the updated softbody index.
-	\param[in] flag Flag defining which data the user wants to write to the softbody system
-	\param[in] maxSize The largest size stored in dataSizes. Used internally to decide how many threads to launch for the copy process. 
-	\param[in] nbUpdatedSoftBodies The number of updated softbodies
-	\param[in] applyEvent User-provided event for the softbody stream to wait for data.
-	\param[in] signalEvent User-provided event for the softbody stream to signal when the read from the user buffer has completed. Defaults to NULL which means the function will wait for the copy to finish before returning.
-	
-	\deprecated There is no direct replacement. Most of the data is exposed in the PxSoftBody interface.
-	*/
-	PX_DEPRECATED	virtual	void	applySoftBodyData(void** data, void* dataSizes, void* softBodyIndices, PxSoftBodyGpuDataFlag::Enum flag, const PxU32 nbUpdatedSoftBodies, const PxU32 maxSize, CUevent applyEvent = NULL, CUevent signalEvent = NULL) = 0;
-
-	/**
-	\brief Copy rigid body contact data from the internal GPU buffer to a user-provided device buffer.
-
-	\note This function only reports contact data for actor pairs where both actors are either rigid bodies or articulations.
-	\note The contact data contains pointers to internal state and is only valid until the next call to simulate().
-
-	\param[in] data User-provided gpu data buffer, which should be the size of PxGpuContactPair * numContactPairs
-	\param[in] maxContactPairs  The maximum number of pairs that the buffer can contain
-	\param[in] numContactPairs The actual number of contact pairs that were written
-	\param[in] copyEvent User-provided event for the user to sync data. Defaults to NULL which means the function will wait for the copy to finish before returning.
-	
-	\deprecated Use PxDirectGPUAPI::copyContactData() instead.
-	*/
-	PX_DEPRECATED	virtual	void	copyContactData(void* data, const PxU32 maxContactPairs, void* numContactPairs, CUevent copyEvent = NULL) = 0;
-	
-	/**
-	\brief Direct-GPU interface that copies the simulation state for a set of rigid bodies into a user-provided device buffer.
-	\param[in] data User-provided gpu data buffer which has size (maxSrcIndex + 1) * sizeof(PxGpuBodyData), where maxSrcIndex is the largest index used in the PxGpuActorPairs provided with the index argument. Will contain the PxGpuBodyData for every requested body.
-	\param[in] index User-provided gpu index buffer containing elements of PxGpuActorPair. This buffer stores pairs of indices: the PxNodeIndex corresponding to the rigid body and an index corresponding to the location in the user buffer that this value should be placed. There must be 1 PxGpuActorPair for each element of the data buffer. The total size of the buffer must be sizeof(PxGpuActorPair) * nbCopyActors.
-	\param[in] nbCopyActors The number of rigid bodies to be copied.
-	\param[in] copyEvent User-provided event that is recorded at the end of this function. Defaults to NULL which means the function will wait for the copy to finish before returning.
-
-	\note This function only works if PxSceneFlag::eENABLE_DIRECT_GPU_API has been raised, the scene is using GPU dynamics, and the simulation has been warm-started by
-	simulating for at least 1 simulation step. 
-	
-	\deprecated Use PxDirectGPUAPI::getRigidDynamicData() instead.	
-	*/
-	PX_DEPRECATED	virtual	void	copyBodyData(PxGpuBodyData* data, PxGpuActorPair* index, const PxU32 nbCopyActors, CUevent copyEvent = NULL) = 0;
-
-	/**
-	\brief Direct-GPU interface to apply batched updates to simulation state for a set of rigid bodies from a device buffer.
-	\param[in] data User-provided gpu data buffer which should be sized appropriately for the particular data that is requested. The data layout for PxActorCacheFlag::eFORCE and PxActorCacheFlag::eTORQUE is 1 PxVec4 per rigid body (4th component is unused). For PxActorCacheFlag::eACTOR_DATA the data layout it 1 PxGpuBodyData per rigid body. The total size of the buffer must be sizeof(type) * (maxSrcIndex + 1), where maxSrcIndex is the largest source index used in the PxGpuActorPairs provided in the index array.
-	\param[in] index User-provided PxGpuActorPair buffer. This buffer stores pairs of indices: the PxNodeIndex corresponding to the rigid body and an index (srcIndex) corresponding to the location in the user buffer that the value is located at. The total size of this buffer must be sizeof(PxGpuActorPair) * nbUpdatedActors.
-	\param[in] flag Flag specifying which data the user wants to write to the rigid bodies.
-	\param[in] nbUpdatedActors The number of updated rigid bodies.
-	\param[in] waitEvent User-provided event for the rigid body stream to wait for data. Will be awaited at the start of this function. Defaults to NULL which means the operation will start immediately.
-	\param[in] signalEvent User-provided event for the rigid body stream to signal when the read from the user buffer has completed. Defaults to NULL which means the function will wait for the copy to finish before returning.
-	
-	\note This function only works if PxSceneFlag::eENABLE_DIRECT_GPU_API has been raised, the scene is using GPU dynamics, and the simulation has been warm-started by
-	simulating for at least 1 simulation step.
-
-	\note The combined usage of this function and the object-oriented CPU interface is forbidden for all parameters that can be set through this function.
-	Specifically, this includes: PxRigidDynamic::setGlobalPose(), PxRigidDynamic::setLinearVelocity(), PxRigidDynamic::setAngularVelocity(),
-	PxRigidDynamic::addForce(), PxRigidDynamic::addTorque(), PxRigidDynamic::setForceAndTorque(). However, using the CPU interface to update simulation
-	parameters like, for example, mass or angular damping is still supported.
-	
-	\deprecated Use PxDirectGPUAPI::setRigidDynamicData() instead.	
-	*/
-	PX_DEPRECATED	virtual	void	applyActorData(void* data, PxGpuActorPair* index, PxActorCacheFlag::Enum flag, const PxU32 nbUpdatedActors, CUevent waitEvent = NULL, CUevent signalEvent = NULL) = 0;
-
-	/**
-	\brief Evaluate sample point distances on sdf shapes
-	\param[in] sdfShapeIds The shapes ids in a gpu buffer (must be triangle mesh shapes with SDFs) which specify the shapes from which the sdf information is taken
-	\param[in] nbShapes The number of shapes
-	\param[in] localSamplePointsConcatenated User-provided gpu buffer containing the sample point locations for every shape in the shapes local space. The buffer stride is maxPointCount.
-	\param[in] samplePointCountPerShape Gpu buffer containing the number of sample points for every shape
-	\param[in] maxPointCount The maximum value in the array samplePointCountPerShape
-	\param[out] localGradientAndSDFConcatenated The gpu buffer where the evaluated distances and gradients in SDF local space get stored. It has the same structure as localSamplePointsConcatenated. 
-	\param[in] event User-provided event for the user to sync. Defaults to NULL which means the function will wait for the operation to finish before returning.
-	
-	\deprecated Use PxDirectGPUAPI::evaluateSDFDistances() instead.
-	*/
-	PX_DEPRECATED	virtual	void	evaluateSDFDistances(const PxU32* sdfShapeIds, const PxU32 nbShapes, const PxVec4* localSamplePointsConcatenated,
-														 const PxU32* samplePointCountPerShape, const PxU32 maxPointCount, PxVec4* localGradientAndSDFConcatenated, CUevent event = NULL) = 0;
-
-	/**
-	\brief Compute dense Jacobian matrices for specified articulations on the GPU.
-
-	The size of Jacobians can vary by articulation, since it depends on the number of links, degrees-of-freedom, and whether the base is fixed.
-
-	The size is determined using these formulas:
-	nCols = (fixedBase ? 0 : 6) + dofCount
-	nRows = (fixedBase ? 0 : 6) + (linkCount - 1) * 6;
-
-	The user must ensure that adequate space is provided for each Jacobian matrix.
-
-	\param[in] indices User-provided gpu buffer of (index, data) pairs. The entries map a GPU articulation index to a GPU block of memory where the returned Jacobian will be stored.
-	\param[in] nbIndices The number of (index, data) pairs provided.
-	\param[in] computeEvent User-provided event for the user to sync data. Defaults to NULL which means the function will wait for the computation to finish before returning.
-	
-	\deprecated Use PxDirectGPUAPI::computeArticulationData() instead.
-	*/
-	PX_DEPRECATED	virtual	void	computeDenseJacobians(const PxIndexDataPair* indices, PxU32 nbIndices, CUevent computeEvent = NULL) = 0;
-
-	/**
-	\brief Compute the joint-space inertia matrices that maps joint accelerations to joint forces: forces = M * accelerations on the GPU.
-
-	The size of matrices can vary by articulation, since it depends on the number of links and degrees-of-freedom.
-
-	The size is determined using this formula:
-	sizeof(float) * dofCount * dofCount
-
-	The user must ensure that adequate space is provided for each mass matrix.
-
-	\param[in] indices User-provided gpu buffer of (index, data) pairs. The entries map a GPU articulation index to a GPU block of memory where the returned matrix will be stored.
-	\param[in] nbIndices The number of (index, data) pairs provided.
-	\param[in] computeEvent User-provided event for the user to sync data. Defaults to NULL which means the function will wait for the computation to finish before returning.
-	
-	\deprecated Use PxDirectGPUAPI::computeArticulationData() instead.
-	*/
-	PX_DEPRECATED	virtual	void	computeGeneralizedMassMatrices(const PxIndexDataPair* indices, PxU32 nbIndices, CUevent computeEvent = NULL) = 0;
-
-	/**
-	\brief Computes the joint DOF forces required to counteract gravitational forces for the given articulation pose.
-
-	The size of the result can vary by articulation, since it depends on the number of links and degrees-of-freedom.
-
-	The size is determined using this formula:
-	sizeof(float) * dofCount
-
-	The user must ensure that adequate space is provided for each articulation.
-
-	\param[in] indices User-provided gpu buffer of (index, data) pairs. The entries map a GPU articulation index to a GPU block of memory where the returned matrix will be stored.
-	\param[in] nbIndices The number of (index, data) pairs provided.
-	\param[in] computeEvent User-provided event for the user to sync data. Defaults to NULL which means the function will wait for the computation to finish before returning.
-	
-	\deprecated Use PxDirectGPUAPI::computeArticulationData() instead.
-	*/
-	PX_DEPRECATED	virtual	void	computeGeneralizedGravityForces(const PxIndexDataPair* indices, PxU32 nbIndices, CUevent computeEvent = NULL) = 0;
-
-	/**
-	\brief Computes the joint DOF forces required to counteract coriolis and centrifugal forces for the given articulation pose.
-
-	The size of the result can vary by articulation, since it depends on the number of links and degrees-of-freedom.
-
-	The size is determined using this formula:
-	sizeof(float) * dofCount
-
-	The user must ensure that adequate space is provided for each articulation.
-
-	\param[in] indices User-provided gpu buffer of (index, data) pairs. The entries map a GPU articulation index to a GPU block of memory where the returned matrix will be stored.
-	\param[in] nbIndices The number of (index, data) pairs provided.
-	\param[in] computeEvent User-provided event for the user to sync data. Defaults to NULL which means the function will wait for the computation to finish before returning.
-	
-	\deprecated Use PxDirectGPUAPI::computeArticulationData() instead.
-	*/
-	PX_DEPRECATED	virtual	void	computeCoriolisAndCentrifugalForces(const PxIndexDataPair* indices, PxU32 nbIndices, CUevent computeEvent = NULL) = 0;
-
-    /**
-	\brief Apply user-provided data to particle buffers.
-
-	This function should be used if the particle buffer flags are already on the device. Otherwise, use PxParticleBuffer::raiseFlags()
-	from the CPU.
-
-	This assumes the data has been changed directly in the PxParticleBuffer.
-
-	\param[in] indices User-provided index buffer that indexes into the BufferIndexPair and flags list.
-	\param[in] bufferIndexPair User-provided index pair buffer specifying the unique id and GPU particle system for each PxParticleBuffer. See PxGpuParticleBufferIndexPair.
-	\param[in] flags Flags to mark what data needs to be updated. See PxParticleBufferFlags. 
-	\param[in] nbUpdatedBuffers The number of particle buffers to update.
-	\param[in] waitEvent User-provided event for the particle stream to wait for data. Defaults to NULL which means the operation will start immediately.
-	\param[in] signalEvent User-provided event for the particle stream to signal when the data read from the user buffer has completed. Defaults to NULL which means the function will wait for copy to finish before returning.
-	
-	\deprecated There is no direct replacement. The data is exposed in the PxParticleBuffer/PxParticleSystem interface.
-	*/
-	PX_DEPRECATED	virtual		void				applyParticleBufferData(const PxU32* indices, const PxGpuParticleBufferIndexPair* bufferIndexPair, const PxParticleBufferFlags* flags, PxU32 nbUpdatedBuffers, CUevent waitEvent = NULL, CUevent signalEvent = NULL) = 0;
 };
 
 #if !PX_DOXYGEN

@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -305,20 +305,32 @@ public:
 	virtual     PxReal					getMaxDepenetrationVelocity() const = 0;
 
 	/**
-	\brief Set the maximal velocity particles can reach
+	\brief Set the maximal linear velocity particles can reach.
 
-	Allows to limit the particles' maximal velocity to control the maximal distance a particle can move per frame
+	Allows to limit the particles' maximal velocity to control the maximal distance a particle can move per frame.
 
-	\param[in] maxVelocity The maximal velocity
+	<b>Default:</b> PX_MAX_F32
+
+	\param[in] maxLinearVelocity The maximal linear velocity
 	*/
-	virtual     void					setMaxVelocity(PxReal maxVelocity) = 0;
+	virtual     void					setMaxLinearVelocity(PxReal maxLinearVelocity) = 0;
 
 	/**
-	\brief Retrieves maximal velocity a particle can have.
+	\brief Retrieves maximal linear velocity a particle can have.
 
-	\return The maximal velocity
+	\return The maximal linear velocity
 	*/
-	virtual     PxReal					getMaxVelocity() const = 0;
+	virtual     PxReal					getMaxLinearVelocity() const = 0;
+
+	/**
+	\deprecated Use setMaxLinearVelocity() instead.
+	*/
+	PX_DEPRECATED PX_FORCE_INLINE void	setMaxVelocity(PxReal maxVelocity) { setMaxLinearVelocity(maxVelocity); }
+
+	/**
+	\deprecated Use getMaxLinearVelocity() instead.
+	*/
+	PX_DEPRECATED PX_FORCE_INLINE PxReal getMaxVelocity() const { return getMaxLinearVelocity(); }
 
 
 	/**
@@ -329,9 +341,9 @@ public:
 	virtual     PxCudaContextManager*	getCudaContextManager() const = 0;
 
 	/**
-	\brief Set the rest offset for the collision between particles and rigids or soft bodies.
+	\brief Set the rest offset for the collision between particles and rigids or deformable bodies.
 
-	A particle and a rigid or soft body will come to rest at a distance equal to the sum of their restOffset values.
+	A particle and a rigid or deformable body will come to rest at a distance equal to the sum of their restOffset values.
 
 	\param[in] restOffset <b>Range:</b> (0, contactOffset)
 	*/
@@ -349,7 +361,7 @@ public:
 	\brief Set the contact offset for the collision between particles and rigids or soft bodies
 
 	The contact offset needs to be larger than the rest offset.
-	Contact constraints are generated for a particle and a rigid or softbody below the distance equal to the sum of their contacOffset values.
+	Contact constraints are generated for a particle and a rigid or deformable below the distance equal to the sum of their contacOffset values.
 
 	\param[in] contactOffset <b>Range:</b> (restOffset, PX_MAX_F32)
 	*/
@@ -397,46 +409,6 @@ public:
 	See #setSolidRestOffset()
 	*/
 	virtual     PxReal					getSolidRestOffset() const = 0;
-
-
-	/**
-	\brief Creates a rigid attachment between a particle and a rigid actor.
-
-	\deprecated Particle-cloth, -rigids, -attachments and -volumes have been deprecated.
-
-	This method creates a symbolic attachment between the particle system and a rigid body for the purpose of island management.
-	The actual attachments will be contained in the particle buffers.
-
-	Be aware that destroying the rigid body before destroying the attachment is illegal and may cause a crash.
-	The particle system keeps track of these attachments but the rigid body does not.
-
-	\param[in] actor The rigid actor used for the attachment
-	*/
-	PX_DEPRECATED virtual void			addRigidAttachment(PxRigidActor* actor) = 0;
-
-	/**
-	\brief Removes a rigid attachment between a particle and a rigid body.
-
-	\deprecated Particle-cloth, -rigids, -attachments and -volumes have been deprecated.
-
-	This method destroys a symbolic attachment between the particle system and a rigid body for the purpose of island management.
-
-	Be aware that destroying the rigid body before destroying the attachment is illegal and may cause a crash.
-	The particle system keeps track of these attachments but the rigid body does not.
-
-	\param[in] actor The rigid body actor used for the attachment
-	*/
-	PX_DEPRECATED virtual void			removeRigidAttachment(PxRigidActor* actor) = 0;
-
-
-	/**
-	\brief Enable continuous collision detection for particles
-
-	\deprecated Replaced by particle flag, \see PxParticleFlag::eENABLE_SPECULATIVE_CCD.
-
-	\param[in] enable Boolean indicates whether continuous collision detection is enabled.
-	*/
-	PX_DEPRECATED virtual void			enableCCD(bool enable) = 0;
 
 
 	/**
@@ -632,7 +604,7 @@ public:
 	virtual     PxU32                    getGridSizeZ() const = 0;
 
 
-	virtual     const char*             getConcreteTypeName() const PX_OVERRIDE { return "PxPBDParticleSystem"; }
+	virtual     const char*             getConcreteTypeName() const PX_OVERRIDE	PX_FINAL { return "PxPBDParticleSystem"; }
 
 protected:
 	PX_INLINE                           PxPBDParticleSystem(PxType concreteType, PxBaseFlags baseFlags) : PxActor(concreteType, baseFlags) {}

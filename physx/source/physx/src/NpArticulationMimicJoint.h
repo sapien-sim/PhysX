@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -55,26 +55,35 @@ public:
 	virtual		void						requiresObjects(PxProcessPxBaseCallback&) {}
 	virtual		bool						isSubordinate()  const	 { return true; } 
 	static		NpArticulationMimicJoint*	createObject(PxU8*& address, PxDeserializationContext& context);
-	static		void						getBinaryMetaData(PxOutputStream& stream);		
 //~PX_SERIALIZATION
 
-	NpArticulationMimicJoint(const PxArticulationJointReducedCoordinate& jointA, PxArticulationAxis::Enum axisA, const PxArticulationJointReducedCoordinate& jointB, PxArticulationAxis::Enum axisB, PxReal gearRatio, PxReal offset);
+	NpArticulationMimicJoint(
+		const PxArticulationJointReducedCoordinate& jointA, PxArticulationAxis::Enum axisA, 
+		const PxArticulationJointReducedCoordinate& jointB, PxArticulationAxis::Enum axisB, 
+		PxReal gearRatio, PxReal offset, 
+		PxReal naturalFrequency, PxReal dampingRatio);
 	virtual ~NpArticulationMimicJoint() {}
 
-	virtual void release() PX_OVERRIDE;
-	virtual PxArticulationReducedCoordinate& getArticulation() const PX_OVERRIDE;
+	// PxBase
+	virtual void release() PX_OVERRIDE PX_FINAL;
+	//~PxBase
 
-	virtual void setGearRatio(const PxReal gearRatio) PX_OVERRIDE;
-	virtual void setOffset(const PxReal gearRatio) PX_OVERRIDE;
+	// PxArticulationMimicJoint
+	virtual PxArticulationReducedCoordinate& getArticulation() const PX_OVERRIDE PX_FINAL;
+	virtual PxReal getGearRatio() const PX_OVERRIDE PX_FINAL;
+	virtual void setGearRatio(PxReal gearRatio) PX_OVERRIDE PX_FINAL;
+	virtual PxReal getOffset() const PX_OVERRIDE PX_FINAL;
+	virtual void setOffset(PxReal offset) PX_OVERRIDE PX_FINAL;
+	virtual PxReal getNaturalFrequency() const PX_OVERRIDE PX_FINAL;
+	virtual void setNaturalFrequency(PxReal naturalFrequency) PX_OVERRIDE PX_FINAL;
+	virtual PxReal getDampingRatio() const PX_OVERRIDE PX_FINAL;
+	virtual void setDampingRatio(PxReal dampingRatio)  PX_OVERRIDE PX_FINAL;
+	virtual PxArticulationJointReducedCoordinate& getJointA() const PX_OVERRIDE PX_FINAL;
+	virtual PxArticulationJointReducedCoordinate& getJointB() const PX_OVERRIDE PX_FINAL;
+	virtual PxArticulationAxis::Enum getAxisA() const PX_OVERRIDE PX_FINAL;
+	virtual PxArticulationAxis::Enum getAxisB() const PX_OVERRIDE PX_FINAL;
 
-	virtual PxReal getGearRatio() const PX_OVERRIDE ;
-	virtual PxReal getOffset() const PX_OVERRIDE ;
-
-	virtual PxArticulationJointReducedCoordinate& getJointA() const PX_OVERRIDE;
-	virtual PxArticulationJointReducedCoordinate& getJointB() const PX_OVERRIDE;
-
-	virtual PxArticulationAxis::Enum getAxisA() const PX_OVERRIDE;
-	virtual PxArticulationAxis::Enum getAxisB() const PX_OVERRIDE;
+	//~PxArticulationMimicJoint
 
 	PX_FORCE_INLINE	void setHandle(ArticulationMimicJointHandle handle) { mHandle = handle; }
 

@@ -22,9 +22,9 @@
 ## (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ## OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ##
-## Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+## Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 
-cmake_minimum_required(VERSION 3.7)
+cmake_minimum_required(VERSION 3.21)
 
 project(PVDRuntime C CXX)
 

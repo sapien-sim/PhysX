@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -40,7 +40,6 @@ namespace physx
 {
 #endif
 
-	class PxCudaContextManager;
 	class PxBaseTask;
 	class PxGeometry;
 
@@ -281,7 +280,7 @@ namespace immediate
 		PxReal							jointPos[PxArticulationAxis::eCOUNT];
 		PxReal							jointVel[PxArticulationAxis::eCOUNT];
 		PxReal							frictionCoefficient;
-		PxReal							maxJointVelocity;
+		PxReal							maxJointVelocity[PxArticulationAxis::eCOUNT];
 		PxArticulationJointType::Enum	type;
 
 		void	initData()
@@ -289,7 +288,6 @@ namespace immediate
 			parentPose			= PxTransform(PxIdentity);
 			childPose			= PxTransform(PxIdentity);
 			frictionCoefficient	= 0.05f;
-			maxJointVelocity	= 100.0f;
 			type				= PxArticulationJointType::eUNDEFINED;	// For root
 
 			for(PxU32 i=0;i<PxArticulationAxis::eCOUNT;i++)
@@ -300,6 +298,7 @@ namespace immediate
 				armature[i] = 0.0f;
 				jointPos[i] = 0.0f;
 				jointVel[i] = 0.0f;
+				maxJointVelocity[i] = 100.0f;
 			}
 			PxMemSet(targetPos, 0xff, sizeof(PxReal)*PxArticulationAxis::eCOUNT);
 			PxMemSet(targetVel, 0xff, sizeof(PxReal)*PxArticulationAxis::eCOUNT);
@@ -438,7 +437,7 @@ namespace immediate
 	\brief Releases an immediate-mode reduced-coordinate articulation.
 	\param	[in] articulation	Articulation handle
 
-	\see PxCreateFeatherstoneArticulation
+	\see PxBeginCreateArticulationRC PxEndCreateArticulationRC
 	*/
 	PX_C_EXPORT PX_PHYSX_CORE_API void PxReleaseArticulation(PxArticulationHandle articulation);
 

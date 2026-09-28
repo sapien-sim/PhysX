@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -31,14 +31,16 @@
 
 using namespace physx;
 using namespace Bp;
+using namespace Cm;
 
-AABBManagerBase::AABBManagerBase(	BroadPhase& bp, BoundsArray& boundsArray, PxFloatArrayPinned& contactDistance,
-									PxU32 maxNbAggregates, PxU32 maxNbShapes, PxVirtualAllocator& allocator, PxU64 contextID,
+AABBManagerBase::AABBManagerBase(	BroadPhase& bp, BoundsArray& boundsArray, PinnableArray<PxReal>& contactDistance,
+									PxU32 maxNbAggregates, PxU32 maxNbShapes, VirtualAllocatorCallback& allocator, PxU64 contextID,
 									PxPairFilteringMode::Enum kineKineFilteringMode, PxPairFilteringMode::Enum staticKineFilteringMode) :
 	mAddedHandleMap			(allocator),
 	mRemovedHandleMap		(allocator),
 	mChangedHandleMap		(allocator),
 	mGroups					(allocator),
+	mEnvIDs					(allocator),
 	mContactDistance		(contactDistance),
 	mVolumeData				(allocator),
 	mFilters				(kineKineFilteringMode == PxPairFilteringMode::eKILL, staticKineFilteringMode == PxPairFilteringMode::eKILL),
@@ -56,7 +58,7 @@ AABBManagerBase::AABBManagerBase(	BroadPhase& bp, BoundsArray& boundsArray, PxFl
 #else
 	PX_CATCH_UNDEFINED_ENABLE_SIM_STATS
 #endif
-#ifdef BP_USE_AGGREGATE_GROUP_TAIL
+#if BP_USE_AGGREGATE_GROUP_TAIL
 	mAggregateGroupTide		(PxU32(Bp::FilterGroup::eAGGREGATE_BASE)),
 #endif
 	mContextID				(contextID),

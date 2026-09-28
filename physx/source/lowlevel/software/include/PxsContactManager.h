@@ -22,19 +22,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #ifndef PXS_CONTACT_MANAGER_H
 #define PXS_CONTACT_MANAGER_H
 
-#include "PxvConfig.h"
+#include "PxPhysXConfig.h"
 #include "PxcNpWorkUnit.h"
 
 namespace physx
 {
-class PxsContext;
 class PxsRigidBody;
 
 namespace Dy
@@ -76,7 +75,7 @@ PX_COMPILE_TIME_ASSERT((sizeof(PxsCCDContactHeader) & 0xF) == 0);
 class PxsContactManager
 {
 public:
-											PxsContactManager(PxsContext* context, PxU32 index);
+											PxsContactManager(PxU32 index);
 											~PxsContactManager();
 
 	PX_FORCE_INLINE	void					setDisableStrongFriction(PxU32 d)	{ (!d)	? mNpUnit.mFlags &= ~PxcNpWorkUnitFlag::eDISABLE_STRONG_FRICTION 
@@ -85,17 +84,17 @@ public:
 	PX_FORCE_INLINE	PxReal					getRestDistance()			const	{ return mNpUnit.mRestDistance;	}
 	PX_FORCE_INLINE	void					setRestDistance(PxReal v)			{ mNpUnit.mRestDistance = v;	}
 
-	PX_FORCE_INLINE	PxU8					getDominance0()				const	{ return mNpUnit.mDominance0;	}
-	PX_FORCE_INLINE	void					setDominance0(PxU8 v)				{ mNpUnit.mDominance0 = v;		}
+	PX_FORCE_INLINE	PxU8					getDominance0()				const	{ return mNpUnit.getDominance0();	}
+	PX_FORCE_INLINE	void					setDominance0(PxU8 v)				{ mNpUnit.setDominance0(v);			}
 
-	PX_FORCE_INLINE	PxU8					getDominance1()				const	{ return mNpUnit.mDominance1;	}
-	PX_FORCE_INLINE	void					setDominance1(PxU8 v)				{ mNpUnit.mDominance1 = v;		}
+	PX_FORCE_INLINE	PxU8					getDominance1()				const	{ return mNpUnit.getDominance1();	}
+	PX_FORCE_INLINE	void					setDominance1(PxU8 v)				{ mNpUnit.setDominance1(v);			}
 
 	PX_FORCE_INLINE	PxU16					getTouchStatus()			const	{ return PxU16(mNpUnit.mStatusFlags & PxcNpWorkUnitStatusFlag::eHAS_TOUCH); }
 	PX_FORCE_INLINE	PxU16					touchStatusKnown()			const	{ return PxU16(mNpUnit.mStatusFlags & PxcNpWorkUnitStatusFlag::eTOUCH_KNOWN); }
 	PX_FORCE_INLINE	PxI32					getTouchIdx()				const	{ return (mNpUnit.mStatusFlags & PxcNpWorkUnitStatusFlag::eHAS_TOUCH) ? 1 : (mNpUnit.mStatusFlags & PxcNpWorkUnitStatusFlag::eHAS_NO_TOUCH ? -1 : 0); }
 
-	PX_FORCE_INLINE	PxU32					getIndex()					const	{ return mNpUnit.mIndex;	}
+	PX_FORCE_INLINE	PxU32					getIndex()					const	{ return mCmIndex;	}
 
 	PX_FORCE_INLINE	PxU16					getHasCCDRetouch()			const	{ return PxU16(mNpUnit.mStatusFlags & PxcNpWorkUnitStatusFlag::eHAS_CCD_RETOUCH); }
 	PX_FORCE_INLINE	void					clearCCDRetouch()					{ mNpUnit.mStatusFlags &= ~PxcNpWorkUnitStatusFlag::eHAS_CCD_RETOUCH; }
@@ -113,6 +112,8 @@ public:
 	PX_FORCE_INLINE	PxcNpWorkUnit&			getWorkUnit()						{ return mNpUnit;	}
 	PX_FORCE_INLINE	const PxcNpWorkUnit&	getWorkUnit()				const	{ return mNpUnit;	}
 
+	PX_FORCE_INLINE	PxsRigidBody*			getRigidBody0()				const	{ return mRigidBody0;		}
+	PX_FORCE_INLINE	PxsRigidBody*			getRigidBody1()				const	{ return mRigidBody1;		}
 	PX_FORCE_INLINE	Sc::ShapeInteraction*	getShapeInteraction()		const	{ return mShapeInteraction; }
 	
 	// Setup solver-constraints
@@ -124,24 +125,21 @@ public:
 private:
 					//KS - moving this up - we want to get at flags
 					
-					PxsRigidBody*			mRigidBody0;		//4		//8
-					PxsRigidBody*			mRigidBody1;		//8		//16	
-					PxU32					mFlags;				//20	//36
-					Sc::ShapeInteraction*	mShapeInteraction;	//16	//32
+					PxsRigidBody*			mRigidBody0;
+					PxsRigidBody*			mRigidBody1;
+					PxU32					mFlags;
+					PxU32					mCmIndex;	// PT: moved to padding bytes from mNpUnit
+					Sc::ShapeInteraction*	mShapeInteraction;
 
-					friend class PxsContext;
 	// everything required for narrow phase to run
 					PxcNpWorkUnit			mNpUnit;
 	enum
 	{
-		PXS_CM_CHANGEABLE	= (1<<0),
-		PXS_CM_CCD_LINEAR	= (1<<1),
+		PXS_CM_CHANGEABLE	= (1 << 0),
+		PXS_CM_CCD_LINEAR	= (1 << 1),
 		PXS_CM_CCD_CONTACT	= (1 << 2)
 	};
 
-	friend class Dy::DynamicsContext;
-	friend struct PxsCCDPair;
-	friend class PxsCCDContext;
 	friend class Sc::ShapeInteraction;
 };
 

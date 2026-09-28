@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -31,6 +31,7 @@
 
 #include "PxAggregate.h"
 #include "NpBase.h"
+#include "BpVolumeData.h"
 
 namespace physx
 {
@@ -47,7 +48,6 @@ public:
 						void					resolveReferences(PxDeserializationContext& context);
 	    virtual	        void					requiresObjects(PxProcessPxBaseCallback& c);
 		static			NpAggregate*			createObject(PxU8*& address, PxDeserializationContext& context);
-		static			void					getBinaryMetaData(PxOutputStream& stream);
 //~PX_SERIALIZATION
 												NpAggregate(PxU32 maxActors, PxU32 maxShapes, PxAggregateFilterHint filterHint);
 		virtual									~NpAggregate();
@@ -64,16 +64,19 @@ public:
 		virtual			PxU32					getActors(PxActor** userBuffer, PxU32 bufferSize, PxU32 startIndex) const	PX_OVERRIDE PX_FINAL;
 		virtual			PxScene*				getScene()	PX_OVERRIDE PX_FINAL;
 		virtual			bool					getSelfCollision()	const	PX_OVERRIDE PX_FINAL;
+		virtual			bool					setEnvironmentID(PxU32 envID)	PX_OVERRIDE PX_FINAL;
+		virtual			PxU32					getEnvironmentID()		const	PX_OVERRIDE PX_FINAL;
 		//~PxAggregate
 
 		PX_FORCE_INLINE	PxU32					getMaxNbShapesFast()	const	{ return mMaxNbShapes;	}
 		PX_FORCE_INLINE	PxU32					getCurrentSizeFast()	const	{ return mNbActors;		}
 		PX_FORCE_INLINE	PxActor*				getActorFast(PxU32 i)	const	{ return mActors[i];	}
-		PX_FORCE_INLINE PxU32					getAggregateID()		const	{ return mAggregateID;	}
-		PX_FORCE_INLINE void					setAggregateID(PxU32 cid)		{ mAggregateID = cid;	}
+		PX_FORCE_INLINE Bp::AggregateHandle		getAggregateHandle()	const	{ return mAggregateHandle;	}
+		PX_FORCE_INLINE void					setAggregateHandle(Bp::AggregateHandle h)	{ mAggregateHandle = h;		}
 
 		PX_FORCE_INLINE	bool					getSelfCollideFast()	const	{ return PxGetAggregateSelfCollisionBit(mFilterHint)!=0;	}
 		PX_FORCE_INLINE	PxAggregateFilterHint	getFilterHint()			const	{ return mFilterHint;	}
+		PX_FORCE_INLINE	PxU32					getEnvID()				const	{ return mEnvID;		}
 
 						void					scRemoveActor(NpActor& actor, bool reinsert);
 						bool					removeActorAndReinsert(PxActor& actor, bool reinsert);
@@ -83,10 +86,11 @@ public:
 						void					incShapeCount();
 						void					decShapeCount();
 private:
-						PxU32					mAggregateID;
+						Bp::AggregateHandle		mAggregateHandle;
 						PxU32					mMaxNbActors;
 						PxU32					mMaxNbShapes;
 						PxAggregateFilterHint	mFilterHint;
+						PxU32					mEnvID;
 						PxU32					mNbActors;
 						PxU32					mNbShapes;
 						PxActor**				mActors;

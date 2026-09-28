@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -57,7 +57,6 @@ class PxFixedJoint;
 class PxPrismaticJoint;
 class PxRevoluteJoint;
 class PxSphericalJoint;
-class PxContactJoint;
 class PxGearJoint;
 class PxRackAndPinionJoint;
 }
@@ -74,8 +73,6 @@ namespace pvdsdk {
 	DEFINE_NATIVE_PVD_PHYSX3_TYPE_MAP(PxFixedJointGeneratedValues)
 	DEFINE_NATIVE_PVD_PHYSX3_TYPE_MAP(PxDistanceJoint)
 	DEFINE_NATIVE_PVD_PHYSX3_TYPE_MAP(PxDistanceJointGeneratedValues)
-	DEFINE_NATIVE_PVD_PHYSX3_TYPE_MAP(PxContactJoint)
-	DEFINE_NATIVE_PVD_PHYSX3_TYPE_MAP(PxContactJointGeneratedValues)
 	DEFINE_NATIVE_PVD_PHYSX3_TYPE_MAP(PxPrismaticJoint)
 	DEFINE_NATIVE_PVD_PHYSX3_TYPE_MAP(PxPrismaticJointGeneratedValues)
 	DEFINE_NATIVE_PVD_PHYSX3_TYPE_MAP(PxRevoluteJoint)
@@ -118,7 +115,7 @@ namespace Ext
 		
 		template<typename TObjType>
 		static void createInstance( PvdDataStream& inStream, const PxConstraint& c, const TObjType& inSource )
-		{				
+		{
 			inStream.createInstance( &inSource );
 			inStream.pushBackObjectRef( c.getScene(), "Joints", &inSource );
 
@@ -139,17 +136,17 @@ namespace Ext
 							//Assigned is needed for copying
 				ConstraintUpdateCmd(const ConstraintUpdateCmd& cmd)
 					:PvdDataStream::PvdCommand(), mConstraint(cmd.mConstraint), mJoint(cmd.mJoint)
-				{					
+				{
 				}
 
-				virtual bool canRun(PvdInstanceDataStream &inStream_ )
+				virtual bool canRun(PvdInstanceDataStream &inStream_ ) PX_OVERRIDE
 				{
 					PX_ASSERT(inStream_.isInstanceValid(&mJoint));
 					//When run this command, the constraint maybe buffer removed
 					return ((actor0 == NULL) || inStream_.isInstanceValid(actor0))
 						&&  ((actor1 == NULL) || inStream_.isInstanceValid(actor1));
 				}
-				virtual void run( PvdInstanceDataStream &inStream_ )
+				virtual void run( PvdInstanceDataStream &inStream_ ) PX_OVERRIDE
 				{
 					//When run this command, the constraint maybe buffer removed
 					if(!inStream_.isInstanceValid(&mJoint))
@@ -184,7 +181,7 @@ namespace Ext
 		}
 		
 		template<typename jointtype>
-		static void simUpdate(PvdDataStream& /*pvdConnection*/, const jointtype& /*joint*/) {}		
+		static void simUpdate(PvdDataStream& /*pvdConnection*/, const jointtype& /*joint*/) {}
 		
 		template<typename jointtype>
 		static void createPvdInstance(PvdDataStream& pvdConnection, const PxConstraint& c, const jointtype& joint)

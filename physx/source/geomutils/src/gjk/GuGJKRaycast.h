@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -107,7 +107,7 @@ namespace Gu
 		Vec3V nor = v;
 		
 		while(BAllEqTTTT(bNotTerminated))
-		{	
+		{
 			minDist = sDist;
 			preClos = clos;
 
@@ -141,7 +141,7 @@ namespace Gu
 						const Vec3V bPreCenter = x;
 						x = V3ScaleAdd(r, _lambda, s);
 						
-						const Vec3V offSet =V3Sub(x, bPreCenter);
+						const Vec3V offSet = V3Sub(x, bPreCenter);
 						const Vec3V b0 = V3Add(B[0], offSet);
 						const Vec3V b1 = V3Add(B[1], offSet);
 						const Vec3V b2 = V3Add(B[2], offSet);
@@ -187,7 +187,7 @@ namespace Gu
 		lambda = _lambda;
 		
 		const Vec3V closestP = V3Sel(bNotDegenerated, clos, preClos);
-		Vec3V closA = zeroV, closB = zeroV;
+		Vec3V closA = x, closB = x;
 		getClosestPoint(Q, A, B, closestP, closA, closB, size);
 		closestA = V3Sel(aQuadratic, V3NegScaleSub(nor, a.getMargin(), closA), closA);  
 		

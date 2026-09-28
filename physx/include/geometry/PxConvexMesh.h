@@ -22,19 +22,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.
 
 #ifndef PX_CONVEX_MESH_H
 #define PX_CONVEX_MESH_H
 
-#include "foundation/Px.h"
+#include "foundation/PxVec3.h"
+#include "foundation/PxMat33.h"
 #include "common/PxBase.h"
 
 #if !PX_DOXYGEN
 namespace physx
 {
+class PxBounds3;
 #endif
 
 /**
@@ -122,7 +124,7 @@ public:
 	
 	\see PxPhysics.createConvexMesh() PxConvexMeshGeometry PxShape
 	*/
-	virtual	void	release()	= 0;
+	virtual	void	release()	PX_OVERRIDE	= 0;
 
 	/**
 	\brief Returns the mass properties of the mesh assuming unit density.
@@ -156,7 +158,7 @@ public:
 	virtual const PxReal* getSDF() const = 0;
 
 
-	virtual	const char*	getConcreteTypeName() const	{ return "PxConvexMesh"; }
+	virtual	const char*	getConcreteTypeName() const	PX_OVERRIDE	PX_FINAL	{ return "PxConvexMesh"; }
 
 	/**
 	\brief This method decides whether a convex mesh is gpu compatible. If the total number of vertices are more than 64 or any number of vertices in a polygon is more than 32, or
@@ -172,7 +174,7 @@ protected:
 	PX_INLINE			PxConvexMesh(PxType concreteType, PxBaseFlags baseFlags) : PxRefCounted(concreteType, baseFlags) {}
 	PX_INLINE			PxConvexMesh(PxBaseFlags baseFlags) : PxRefCounted(baseFlags) {}
 	virtual				~PxConvexMesh() {}
-	virtual	bool		isKindOf(const char* name) const { PX_IS_KIND_OF(name, "PxConvexMesh", PxRefCounted); }
+	virtual	bool		isKindOf(const char* name) const PX_OVERRIDE { PX_IS_KIND_OF(name, "PxConvexMesh", PxRefCounted); }
 };
 
 #if !PX_DOXYGEN

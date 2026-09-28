@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -256,7 +256,7 @@ struct PxPairFlag
 		*/
 		eCONTACT_EVENT_POSE					= (1<<14),
 
-		eNEXT_FREE							= (1<<15),        //!< For internal use only.
+		eNEXT_FREE							= (1<<15),		//!< For internal use only.
 
 		/**
 		\brief Provided default flag to do simple contact processing for this collision pair.
@@ -456,30 +456,22 @@ struct PxFilterObjectType
 		eARTICULATION,
 
 		/**
+		\brief A deformable surface
+		\see PxDeformableSurface
+		*/
+		eDEFORMABLE_SURFACE,
+
+		/**
+		\brief A deformable volume
+		\see PxDeformableVolume
+		*/
+		eDEFORMABLE_VOLUME,
+
+		/**
 		\brief A particle system
 		\see PxParticleSystem
 		*/
 		ePARTICLESYSTEM,
-
-		/**
-		\brief A FEM-based soft body
-		\see PxSoftBody
-		*/
-		eSOFTBODY,
-
-		/**
-		\brief A FEM-based cloth
-		\note In development
-		\see PxFEMCloth
-		*/
-		eFEMCLOTH,
-
-		/**
-		\brief A hair system
-		\note In development
-		\see PxHairSystem
-		*/
-		eHAIRSYSTEM,
 
 		//! \brief internal use only!
 		eMAX_TYPE_COUNT = 16,
@@ -497,8 +489,9 @@ struct PxFilterObjectFlag
 	{
 		eKINEMATIC	= (1<<4),
 		eTRIGGER	= (1<<5),
+		eCUSTOM_GEOMETRY = (1 << 6),
 
-		eNEXT_FREE	= (1<<6)	// Used internally
+		eNEXT_FREE	= (1<<7)	// Used internally
 	};
 };
 
@@ -736,43 +729,6 @@ struct PxPairFilteringMode
 		*/
 		eDEFAULT = eSUPPRESS
 	};
-};
-
-/**
-\brief Struct for storing a particle/vertex - rigid filter pair with comparison operators
-\deprecated Particle-cloth, -rigids, -attachments and -volumes have been deprecated.
-*/
-struct PX_DEPRECATED PxParticleRigidFilterPair
-{
-	PX_CUDA_CALLABLE PxParticleRigidFilterPair() {}
-
-	PX_CUDA_CALLABLE PxParticleRigidFilterPair(const PxU64 id0, const PxU64 id1): mID0(id0), mID1(id1) {}
-
-	PxU64 mID0; //!< Rigid node index
-	PxU64 mID1; //!< Particle/vertex id
-
-	PX_CUDA_CALLABLE bool operator<(const PxParticleRigidFilterPair& other) const
-	{
-		if(mID0 < other.mID0)
-			return true;
-		if(mID0 == other.mID0 && mID1 < other.mID1)
-			return true;
-		return false;
-	}
-
-	PX_CUDA_CALLABLE bool operator>(const PxParticleRigidFilterPair& other) const
-	{
-		if(mID0 > other.mID0)
-			return true;
-		if(mID0 == other.mID0 && mID1 > other.mID1)
-			return true;
-		return false;
-	}
-
-	PX_CUDA_CALLABLE bool operator==(const PxParticleRigidFilterPair& other) const
-	{
-		return (mID0 == other.mID0 && mID1 == other.mID1);
-	}
 };
 
 

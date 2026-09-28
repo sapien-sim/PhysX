@@ -22,14 +22,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #ifndef NP_SHAPE_H
 #define NP_SHAPE_H
 
-#include "common/PxMetaData.h"
 #include "PxShape.h"
 #include "NpBase.h"
 #include "ScShapeCore.h"
@@ -52,7 +51,6 @@ public:
 	virtual			void						requiresObjects(PxProcessPxBaseCallback& c);
 					void						resolveReferences(PxDeserializationContext& context);
 	static			NpShape*					createObject(PxU8*& address, PxDeserializationContext& context);
-	static			void						getBinaryMetaData(PxOutputStream& stream);
 //~PX_SERIALIZATION
 												NpShape(const PxGeometry& geometry,
 													PxShapeFlags shapeFlags,
@@ -80,12 +78,12 @@ public:
 	virtual			void						setQueryFilterData(const PxFilterData& data)	PX_OVERRIDE PX_FINAL;
 	virtual			PxFilterData				getQueryFilterData() const	PX_OVERRIDE PX_FINAL;
 	virtual			void						setMaterials(PxMaterial*const* materials, PxU16 materialCount)	PX_OVERRIDE PX_FINAL;
-	virtual			void						setSoftBodyMaterials(PxFEMSoftBodyMaterial*const* materials, PxU16 materialCount)	PX_OVERRIDE PX_FINAL;
-	virtual			void						setClothMaterials(PxFEMClothMaterial*const* materials, PxU16 materialCount)	PX_OVERRIDE PX_FINAL;
+	virtual			void						setDeformableSurfaceMaterials(PxDeformableSurfaceMaterial*const* materials, PxU16 materialCount)	PX_OVERRIDE PX_FINAL;
+	virtual			void						setDeformableVolumeMaterials(PxDeformableVolumeMaterial* const* materials, PxU16 materialCount)	PX_OVERRIDE PX_FINAL;
 	virtual			PxU16						getNbMaterials()															const	PX_OVERRIDE PX_FINAL;
 	virtual			PxU32						getMaterials(PxMaterial** userBuffer, PxU32 bufferSize, PxU32 startIndex=0)	const	PX_OVERRIDE PX_FINAL;
-	virtual			PxU32						getSoftBodyMaterials(PxFEMSoftBodyMaterial** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0)	const	PX_OVERRIDE PX_FINAL;
-	virtual			PxU32						getClothMaterials(PxFEMClothMaterial** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0)	const	PX_OVERRIDE PX_FINAL;
+	virtual			PxU32						getDeformableSurfaceMaterials(PxDeformableSurfaceMaterial** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const	PX_OVERRIDE PX_FINAL;
+	virtual			PxU32						getDeformableVolumeMaterials(PxDeformableVolumeMaterial** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0)	const	PX_OVERRIDE PX_FINAL;
 	virtual			PxBaseMaterial*				getMaterialFromInternalFaceIndex(PxU32 faceIndex)							const	PX_OVERRIDE PX_FINAL;
 	virtual			void						setContactOffset(PxReal)	PX_OVERRIDE PX_FINAL;
 	virtual			PxReal						getContactOffset() const	PX_OVERRIDE PX_FINAL;
@@ -97,7 +95,6 @@ public:
 	virtual			PxReal						getTorsionalPatchRadius() const	PX_OVERRIDE PX_FINAL;
 	virtual			void						setMinTorsionalPatchRadius(PxReal)	PX_OVERRIDE PX_FINAL;
 	virtual			PxReal						getMinTorsionalPatchRadius() const	PX_OVERRIDE PX_FINAL;
-	PX_DEPRECATED	virtual			PxU32		getInternalShapeIndex() const	PX_OVERRIDE PX_FINAL; // deprecated
 	virtual			PxShapeGPUIndex				getGPUIndex() const PX_OVERRIDE PX_FINAL;
 
 	virtual			void						setFlag(PxShapeFlag::Enum flag, bool value)	PX_OVERRIDE PX_FINAL;
@@ -123,8 +120,8 @@ public:
 	PX_FORCE_INLINE	PxGeometryType::Enum		getGeometryTypeFast()	const	{ return mCore.getGeometryType();	}
 	PX_FORCE_INLINE	const PxFilterData&			getQueryFilterDataFast() const	{ return mQueryFilterData;			}
 
-	PX_FORCE_INLINE PxU32						getActorCount()			const	{ return mFreeSlot;																	}
-	PX_FORCE_INLINE bool						isExclusiveFast()		const	{ return mCore.getCore().mShapeCoreFlags.isSet(PxShapeCoreFlag::eIS_EXCLUSIVE);		}
+	PX_FORCE_INLINE PxU32						getActorCount()			const	{ return mFreeSlot;														}
+	PX_FORCE_INLINE bool						isExclusiveFast()		const	{ return mCore.mShapeCoreFlags.isSet(PxShapeCoreFlag::eIS_EXCLUSIVE);	}
 
 	PX_FORCE_INLINE	const Sc::ShapeCore&		getCore()				const	{ return mCore;	}
 	PX_FORCE_INLINE	Sc::ShapeCore&				getCore()						{ return mCore;	}

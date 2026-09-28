@@ -22,19 +22,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #ifndef CM_PTR_TABLE_H
 #define CM_PTR_TABLE_H
 
+#include "foundation/PxConstructor.h"
+#include "foundation/PxIO.h"
 #include "common/PxPhysXCommonConfig.h"
 
 namespace physx
 {
 class PxSerializationContext;
 class PxDeserializationContext;
+class PxOutputStream;
 
 namespace Cm
 {
@@ -95,8 +98,6 @@ struct PX_PHYSX_COMMON_API PtrTable
 
 	void	exportExtraData(PxSerializationContext& stream);
 	void	importExtraData(PxDeserializationContext& context);
-
-	static void getBinaryMetaData(physx::PxOutputStream& stream);
 
 private:
 	void realloc(PxU32 oldCapacity, PxU32 newCapacity, PtrTableStorageManager& sm);

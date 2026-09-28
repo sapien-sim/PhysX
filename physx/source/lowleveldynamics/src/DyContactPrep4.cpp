@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
      
@@ -34,20 +34,12 @@
 #include "DyAllocator.h"
 
 using namespace physx;
-using namespace Gu;
 using namespace aos;
 
 namespace physx
 {
 namespace Dy
 {
-
-PxcCreateFinalizeSolverContactMethod4 createFinalizeMethods4[3] = 
-{
-	createFinalizeSolverContacts4,
-	createFinalizeSolverContacts4Coulomb1D,
-	createFinalizeSolverContacts4Coulomb2D
-};
 
 inline bool ValidateVec4(const Vec4V v)
 {
@@ -57,7 +49,7 @@ inline bool ValidateVec4(const Vec4V v)
 }
 
 static void setupFinalizeSolverConstraints4(PxSolverContactDesc* PX_RESTRICT descs, CorrelationBuffer& c, PxU8* PX_RESTRICT workspace,
-											PxReal invDtF32, PxReal dtF32, PxReal bounceThresholdF32,
+											PxReal invDtF32, PxReal dtF32, PxReal bounceThresholdF32, const PxReal biasCoefficient,
 											const Vec4VArg invMassScale0, const Vec4VArg invInertiaScale0, 
 											const Vec4VArg invMassScale1, const Vec4VArg invInertiaScale1)
 {
@@ -206,11 +198,11 @@ static void setupFinalizeSolverConstraints4(PxSolverContactDesc* PX_RESTRICT des
 
 	const FloatV invDt = FLoad(invDtF32);
 	const FloatV dt = FLoad(dtF32);
-	const FloatV p8 = FLoad(0.8f);
-	const Vec4V p84 = V4Splat(p8);
+	const FloatV biasCoefficientV = FLoad(biasCoefficient);
+	const Vec4V biasCoefficientV4 = V4Splat(biasCoefficientV);
 	const Vec4V bounceThreshold = V4Splat(FLoad(bounceThresholdF32));
 
-	const FloatV invDtp8 = FMul(invDt, p8);
+	const FloatV invDtWithBiasCoefficient = FMul(invDt, biasCoefficientV);
 
 	Vec4V bodyFrame00p4 = V4LoadU(&descs[0].bodyFrame0.p.x);	// PT: safe because of compile-time-assert in PxSolverConstraintPrepDescBase
 	Vec4V bodyFrame01p4 = V4LoadU(&descs[1].bodyFrame0.p.x);	// PT: safe because of compile-time-assert in PxSolverConstraintPrepDescBase
@@ -548,7 +540,7 @@ static void setupFinalizeSolverConstraints4(PxSolverContactDesc* PX_RESTRICT des
 				}
 
 				const Vec4V penetration = V4Sub(separation, restDistance);
-				const Vec4V penInvDtPt8 = V4Max(maxPenBias, V4Scale(penetration, invDtp8));
+				const Vec4V penInvDtWithBiasCoefficient = V4Max(maxPenBias, V4Scale(penetration, invDtWithBiasCoefficient));
 
 				const Vec4V penetrationInvDt = V4Scale(penetration, invDt);
 				const BoolV isSeparated = V4IsGrtrOrEq(penetration, zero);
@@ -568,7 +560,7 @@ static void setupFinalizeSolverConstraints4(PxSolverContactDesc* PX_RESTRICT des
 				const Vec4V velMultiplier = V4Sel(isCompliant, V4Mul(V4Mul(x, a), massIfAccelElseOne), recipResponse);
 				const Vec4V impulseMultiplier = V4Sub(one, V4Sel(isCompliant, x, zero));
 
-				Vec4V scaledBias = V4Mul(V4Sel(isSeparated, penetrationInvDt, penInvDtPt8), velMultiplier);
+				Vec4V scaledBias = V4Mul(V4Sel(isSeparated, penetrationInvDt, penInvDtWithBiasCoefficient), velMultiplier);
 
 				const BoolV isGreater2 = BAnd(BAnd(V4IsGrtr(zero, restitution), V4IsGrtr(bounceThreshold, vrel)),
 					collidingWithVrel);
@@ -660,10 +652,10 @@ static void setupFinalizeSolverConstraints4(PxSolverContactDesc* PX_RESTRICT des
 
 			const PxU32 maxAnchorCount = PxMax(clampedAnchorCount0, PxMax(clampedAnchorCount1, PxMax(clampedAnchorCount2, clampedAnchorCount3)));
 
-			const PxReal coefficient0 = (contactBase0->materialFlags & PxMaterialFlag::eIMPROVED_PATCH_FRICTION && anchorCount0 == 2) ? 0.5f : 1.f;
-			const PxReal coefficient1 = (contactBase1->materialFlags & PxMaterialFlag::eIMPROVED_PATCH_FRICTION && anchorCount1 == 2) ? 0.5f : 1.f;
-			const PxReal coefficient2 = (contactBase2->materialFlags & PxMaterialFlag::eIMPROVED_PATCH_FRICTION && anchorCount2 == 2) ? 0.5f : 1.f;
-			const PxReal coefficient3 = (contactBase3->materialFlags & PxMaterialFlag::eIMPROVED_PATCH_FRICTION && anchorCount3 == 2) ? 0.5f : 1.f;
+			const PxReal coefficient0 = (anchorCount0 == 2) ? 0.5f : 1.f;
+			const PxReal coefficient1 = (anchorCount1 == 2) ? 0.5f : 1.f;
+			const PxReal coefficient2 = (anchorCount2 == 2) ? 0.5f : 1.f;
+			const PxReal coefficient3 = (anchorCount3 == 2) ? 0.5f : 1.f;
 
 			const Vec4V staticFriction = V4LoadXYZW(contactBase0->staticFriction*coefficient0, contactBase1->staticFriction*coefficient1,
 				contactBase2->staticFriction*coefficient2, contactBase3->staticFriction*coefficient3);
@@ -789,15 +781,15 @@ static void setupFinalizeSolverConstraints4(PxSolverContactDesc* PX_RESTRICT des
 					t1Y = V4Mul(maxImpulseScale, t1Y);
 					t1Z = V4Mul(maxImpulseScale, t1Z);
 
-					const Vec3V body0Anchor0 = V3LoadU_SafeReadW(frictionPatch0.body0Anchors[index0]);
-					const Vec3V body0Anchor1 = V3LoadU_SafeReadW(frictionPatch1.body0Anchors[index1]);
-					const Vec3V body0Anchor2 = V3LoadU_SafeReadW(frictionPatch2.body0Anchors[index2]);
-					const Vec3V body0Anchor3 = V3LoadU_SafeReadW(frictionPatch3.body0Anchors[index3]);
+					const Vec4V body0Anchor0 = V4LoadU(&frictionPatch0.body0Anchors[index0].x);
+					const Vec4V body0Anchor1 = V4LoadU(&frictionPatch1.body0Anchors[index1].x);
+					const Vec4V body0Anchor2 = V4LoadU(&frictionPatch2.body0Anchors[index2].x);
+					const Vec4V body0Anchor3 = V4LoadU(&frictionPatch3.body0Anchors[index3].x);
 
-					Vec4V ra0 = Vec4V_From_Vec3V(QuatRotate(bodyFrame00q, body0Anchor0));
-					Vec4V ra1 = Vec4V_From_Vec3V(QuatRotate(bodyFrame01q, body0Anchor1));
-					Vec4V ra2 = Vec4V_From_Vec3V(QuatRotate(bodyFrame02q, body0Anchor2));
-					Vec4V ra3 = Vec4V_From_Vec3V(QuatRotate(bodyFrame03q, body0Anchor3));
+					Vec4V ra0 = QuatRotate4V(bodyFrame00q, body0Anchor0);
+					Vec4V ra1 = QuatRotate4V(bodyFrame01q, body0Anchor1);
+					Vec4V ra2 = QuatRotate4V(bodyFrame02q, body0Anchor2);
+					Vec4V ra3 = QuatRotate4V(bodyFrame03q, body0Anchor3);
 
 					Vec4V raX, raY, raZ;
 					PX_TRANSPOSE_44_34(ra0, ra1, ra2, ra3, raX, raY, raZ);
@@ -810,15 +802,15 @@ static void setupFinalizeSolverConstraints4(PxSolverContactDesc* PX_RESTRICT des
 					const Vec4V raWorldY = V4Add(raY, bodyFrame0pY);
 					const Vec4V raWorldZ = V4Add(raZ, bodyFrame0pZ);
 
-					const Vec3V body1Anchor0 = V3LoadU_SafeReadW(frictionPatch0.body1Anchors[index0]);	
-					const Vec3V body1Anchor1 = V3LoadU_SafeReadW(frictionPatch1.body1Anchors[index1]);
-					const Vec3V body1Anchor2 = V3LoadU_SafeReadW(frictionPatch2.body1Anchors[index2]);
-					const Vec3V body1Anchor3 = V3LoadU_SafeReadW(frictionPatch3.body1Anchors[index3]);
+					const Vec4V body1Anchor0 = V4LoadU(&frictionPatch0.body1Anchors[index0].x);
+					const Vec4V body1Anchor1 = V4LoadU(&frictionPatch1.body1Anchors[index1].x);
+					const Vec4V body1Anchor2 = V4LoadU(&frictionPatch2.body1Anchors[index2].x);
+					const Vec4V body1Anchor3 = V4LoadU(&frictionPatch3.body1Anchors[index3].x);
 				
-					Vec4V rb0 = Vec4V_From_Vec3V(QuatRotate(bodyFrame10q, body1Anchor0));
-					Vec4V rb1 = Vec4V_From_Vec3V(QuatRotate(bodyFrame11q, body1Anchor1));
-					Vec4V rb2 = Vec4V_From_Vec3V(QuatRotate(bodyFrame12q, body1Anchor2));
-					Vec4V rb3 = Vec4V_From_Vec3V(QuatRotate(bodyFrame13q, body1Anchor3));
+					Vec4V rb0 = QuatRotate4V(bodyFrame10q, body1Anchor0);
+					Vec4V rb1 = QuatRotate4V(bodyFrame11q, body1Anchor1);
+					Vec4V rb2 = QuatRotate4V(bodyFrame12q, body1Anchor2);
+					Vec4V rb3 = QuatRotate4V(bodyFrame13q, body1Anchor3);
 
 					Vec4V rbX, rbY, rbZ;
 					PX_TRANSPOSE_44_34(rb0, rb1, rb2, rb3, rbX, rbY, rbZ);
@@ -839,7 +831,6 @@ static void setupFinalizeSolverConstraints4(PxSolverContactDesc* PX_RESTRICT des
 					errorY = V4Sel(V4IsGrtr(solverOffsetSlop, V4Abs(errorY)), zero, errorY);
 					errorZ = V4Sel(V4IsGrtr(solverOffsetSlop, V4Abs(errorZ)), zero, errorZ);*/
 
-					//KS - todo - get this working with per-point friction
 					const PxU32 contactIndex0 = c.contactID[frictionIndex0][index0];
 					const PxU32 contactIndex1 = c.contactID[frictionIndex1][index1];
 					const PxU32 contactIndex2 = c.contactID[frictionIndex2][index2];
@@ -938,7 +929,7 @@ static void setupFinalizeSolverConstraints4(PxSolverContactDesc* PX_RESTRICT des
 							vrel = V4Sub(vrel, dotRbXnAngVel1);
 						}
 
-						const Vec4V velMultiplier = V4Mul(maxImpulseScale, V4Sel(V4IsGrtr(resp, zero), V4Div(p84, resp), zero));
+						const Vec4V velMultiplier = V4Mul(maxImpulseScale, V4Sel(V4IsGrtr(resp, zero), V4Div(biasCoefficientV4, resp), zero));
 
 						Vec4V bias = V4Scale(V4MulAdd(t0Z, errorZ, V4MulAdd(t0Y, errorY, V4Mul(t0X, errorX))), invDt);
 
@@ -1033,7 +1024,7 @@ static void setupFinalizeSolverConstraints4(PxSolverContactDesc* PX_RESTRICT des
 							vrel = V4Sub(vrel, dotRbXnAngVel1);
 						}
 
-						const Vec4V velMultiplier = V4Mul(maxImpulseScale, V4Sel(V4IsGrtr(resp, zero), V4Div(p84, resp), zero));
+						const Vec4V velMultiplier = V4Mul(maxImpulseScale, V4Sel(V4IsGrtr(resp, zero), V4Div(biasCoefficientV4, resp), zero));
 
 						Vec4V bias = V4Scale(V4MulAdd(t1Z, errorZ, V4MulAdd(t1Y, errorY, V4Mul(t1X, errorX))), invDt);
 
@@ -1239,6 +1230,7 @@ SolverConstraintPrepState::Enum createFinalizeSolverContacts4(
 	PxReal bounceThresholdF32,
 	PxReal	frictionOffsetThreshold,
 	PxReal correlationDistance,
+	const PxReal biasCoefficient,
 	PxConstraintAllocator& constraintAllocator)
 {
 	PX_ALIGN(16, PxReal invMassScale0[4]);
@@ -1370,7 +1362,7 @@ SolverConstraintPrepState::Enum createFinalizeSolverContacts4(
 		const Vec4V iMassScale1 = V4LoadA(invMassScale1);
 		const Vec4V iInertiaScale1 = V4LoadA(invInertiaScale1);
 
-		setupFinalizeSolverConstraints4(blockDescs, c, solverConstraint, invDtF32, dtF32, bounceThresholdF32,
+		setupFinalizeSolverConstraints4(blockDescs, c, solverConstraint, invDtF32, dtF32, bounceThresholdF32, biasCoefficient,
 			iMassScale0, iInertiaScale0, iMassScale1, iInertiaScale1);
 
 		PX_ASSERT((*solverConstraint == DY_SC_TYPE_BLOCK_RB_CONTACT) || (*solverConstraint == DY_SC_TYPE_BLOCK_STATIC_RB_CONTACT));
@@ -1391,6 +1383,7 @@ SolverConstraintPrepState::Enum createFinalizeSolverContacts4(
 	PxReal bounceThresholdF32,
 	PxReal frictionOffsetThreshold,
 	PxReal correlationDistance,
+	const PxReal biasCoefficient,
 	PxConstraintAllocator& constraintAllocator)
 {
 	for (PxU32 a = 0; a < 4; ++a)
@@ -1398,13 +1391,12 @@ SolverConstraintPrepState::Enum createFinalizeSolverContacts4(
 		blockDescs[a].desc->constraintLengthOver16 = 0;
 	}
 
+#if PGS_SUPPORT_COMPOUND_CONSTRAINTS
 	PX_ASSERT(cmOutputs[0]->nbContacts && cmOutputs[1]->nbContacts && cmOutputs[2]->nbContacts && cmOutputs[3]->nbContacts);
-
+#endif
 	PxContactBuffer& buffer = threadContext.mContactBuffer;
 
 	buffer.count = 0;
-
-	//PxTransform idt = PxTransform(PxIdentity);
 
 	CorrelationBuffer& c = threadContext.mCorrelationBuffer;
 
@@ -1462,7 +1454,7 @@ SolverConstraintPrepState::Enum createFinalizeSolverContacts4(
 	}
 	return createFinalizeSolverContacts4(c, blockDescs,
 		invDtF32, dtF32, bounceThresholdF32, frictionOffsetThreshold,
-		correlationDistance, constraintAllocator);
+		correlationDistance, biasCoefficient, constraintAllocator);
 }
 
 }

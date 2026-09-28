@@ -22,17 +22,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #include "ScArticulationJointSim.h"
 #include "ScArticulationJointCore.h"
 #include "ScBodySim.h"
-#include "ScScene.h"
-#include "PxsRigidBody.h"
 #include "ScArticulationSim.h"
-#include "PxsSimpleIslandManager.h"
+#include "ScArticulationCore.h"
 
 using namespace physx;
 
@@ -41,7 +39,7 @@ Sc::ArticulationJointSim::ArticulationJointSim(ArticulationJointCore& joint, Act
 	mCore		(joint)
 {
 	{
-		onActivate(NULL);
+		onActivate();
 		registerInActors();
 	}
 
@@ -74,7 +72,7 @@ Sc::BodySim& Sc::ArticulationJointSim::getChild() const
 	return static_cast<BodySim&>(getActorSim1());
 }
 
-bool Sc::ArticulationJointSim::onActivate(void*)
+bool Sc::ArticulationJointSim::onActivate()
 {
 	if(!(getParent().isActive() && getChild().isActive()))
 		return false;

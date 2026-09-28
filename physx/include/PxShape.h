@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -49,13 +49,12 @@ class PxTriangleMeshGeometry;
 class PxTetrahedronMeshGeometry;
 class PxHeightFieldGeometry;
 class PxParticleSystemGeometry;
-class PxHairSystemGeometry;
 class PxRigidActor;
 struct PxFilterData;
 class PxBaseMaterial;
 class PxMaterial;
-class PxFEMSoftBodyMaterial;
-class PxFEMClothMaterial;
+class PxDeformableSurfaceMaterial;
+class PxDeformableVolumeMaterial;
 
 /**
 \brief Flags which affect the behavior of PxShapes.
@@ -143,18 +142,6 @@ PxTriangleMeshGeometry PxHeightFieldGeometry
 class PxShape : public PxRefCounted
 {
 public:
-	/**
-	\brief Decrements the reference count of a shape and releases it if the new reference count is zero.
-
-	Note that in releases prior to PhysX 3.3 this method did not have reference counting semantics and was used to destroy a shape 
-	created with PxActor::createShape(). In PhysX 3.3 and above, this usage is deprecated, instead, use PxRigidActor::detachShape() to detach
-	a shape from an actor. If the shape to be detached was created with PxActor::createShape(), the actor holds the only counted reference,
-	and so when the shape is detached it will also be destroyed. 
-
-	\see PxRigidActor::createShape() PxPhysics::createShape() PxRigidActor::attachShape() PxRigidActor::detachShape()
-	*/
-	virtual		void	release() = 0;
-
 	/**
 	\brief Adjust the geometry of the shape.
 
@@ -283,29 +270,28 @@ public:
 	virtual		void	setMaterials(PxMaterial*const* materials, PxU16 materialCount) = 0;
 
 	/**
-	\brief Assigns FEM soft body material(s) to the shape. Will remove existing materials from the shape.
+	\brief Assigns surface deformable material(s) to the shape. Will remove existing materials from the shape.
 
 	<b>Sleeping:</b> Does <b>NOT</b> wake the associated actor up automatically.
 
-	\param[in] materials List of material pointers to assign to the shape. See #PxFEMSoftBodyMaterial
+	\param[in] materials List of material pointers to assign to the shape. See #PxDeformableSurfaceMaterial
 	\param[in] materialCount The number of materials provided.
 
-	\see PxPhysics.createFEMSoftBodyMaterial() getSoftBodyMaterials() 
+	\see PxPhysics.createDeformableSurfaceMaterial() getDeformableSurfaceMaterials() 
 	*/
-	virtual		void	setSoftBodyMaterials(PxFEMSoftBodyMaterial*const* materials, PxU16 materialCount) = 0;
+	virtual		void	setDeformableSurfaceMaterials(PxDeformableSurfaceMaterial*const* materials, PxU16 materialCount) = 0;
 
 	/**
-	\brief Assigns FEM cloth material(s) to the shape. Will remove existing materials from the shape.
-	\warning Feature under development, only for internal usage.
+	\brief Assigns deformable volume material(s) to the shape. Will remove existing materials from the shape.
 
 	<b>Sleeping:</b> Does <b>NOT</b> wake the associated actor up automatically.
 
-	\param[in] materials List of material pointers to assign to the shape. See #PxFEMClothMaterial
+	\param[in] materials List of material pointers to assign to the shape. See #PxDeformableVolumeMaterial
 	\param[in] materialCount The number of materials provided.
 
-	\see PxPhysics.createFEMClothMaterial() getClothMaterials() 
+	\see PxPhysics.createDeformableVolumeMaterial() getDeformableVolumeMaterials()
 	*/
-	virtual		void	setClothMaterials(PxFEMClothMaterial*const* materials, PxU16 materialCount) = 0;
+	virtual		void	setDeformableVolumeMaterials(PxDeformableVolumeMaterial* const* materials, PxU16 materialCount) = 0;
 
 	/**
 	\brief Returns the number of materials assigned to the shape.
@@ -335,7 +321,7 @@ public:
 	virtual		PxU32	getMaterials(PxMaterial** userBuffer, PxU32 bufferSize, PxU32 startIndex=0) const = 0;
 
 	/**
-	\brief Retrieve all the FEM soft body material pointers associated with the shape.
+	\brief Retrieve all the surface deformable material pointers associated with the shape.
 
 	You can retrieve the number of material pointers by calling #getNbMaterials()
 
@@ -346,13 +332,12 @@ public:
 	\param[in] startIndex Index of first material pointer to be retrieved
 	\return Number of material pointers written to the buffer.
 
-	\see PxFEMSoftBodyMaterial getNbMaterials() PxMaterial::release()
+	\see PxDeformableSurfaceMaterial getNbMaterials() PxMaterial::release()
 	*/
-	virtual		PxU32	getSoftBodyMaterials(PxFEMSoftBodyMaterial** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const = 0;
+	virtual		PxU32	getDeformableSurfaceMaterials(PxDeformableSurfaceMaterial** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const = 0;
 
 	/**
-	\brief Retrieve all the FEM cloth material pointers associated with the shape.
-	\warning Feature under development, only for internal usage.
+	\brief Retrieve all the deformable volume material pointers associated with the shape.
 
 	You can retrieve the number of material pointers by calling #getNbMaterials()
 
@@ -363,9 +348,9 @@ public:
 	\param[in] startIndex Index of first material pointer to be retrieved
 	\return Number of material pointers written to the buffer.
 
-	\see PxFEMClothMaterial getNbMaterials() PxMaterial::release()
+	\see PxDeformableVolumeMaterial getNbMaterials() PxMaterial::release()
 	*/
-	virtual		PxU32	getClothMaterials(PxFEMClothMaterial** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const = 0;
+	virtual		PxU32	getDeformableVolumeMaterials(PxDeformableVolumeMaterial** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const = 0;
 
 	/**
 	\brief Retrieve material from given triangle index.
@@ -518,20 +503,6 @@ public:
 	virtual		PxReal	getMinTorsionalPatchRadius() const = 0;
 
 	/**
-	\brief Gets internal shape id
-
-	The internal shape id can be used to reference a specific shape when processing data on the gpu.
-
-	This is not supported on the CPU, and the function will return PX_INVALID_U32;
-	
-	\return The shape id
-
-	\see PxScene evaluateSDFDistances()
-	\deprecated, use getGPUIndex() instead.
-	*/
-	virtual	PX_DEPRECATED	PxU32	getInternalShapeIndex() const = 0;
-
-	/**
 	\brief Returns the GPU shape index.
 
 	\note This function only returns valid results if GPU dynamics is enabled.
@@ -604,7 +575,7 @@ public:
 	virtual		const char*	getName()			const	= 0;
 
 
-	virtual		const char*	getConcreteTypeName() const	{ return "PxShape"; }
+	virtual		const char*	getConcreteTypeName() const	PX_OVERRIDE	PX_FINAL	{ return "PxShape"; }
 
 /************************************************************************************************/
 
@@ -614,7 +585,7 @@ protected:
 	PX_INLINE				PxShape(PxBaseFlags baseFlags) : PxRefCounted(baseFlags) {}
 	PX_INLINE				PxShape(PxType concreteType, PxBaseFlags baseFlags) : PxRefCounted(concreteType, baseFlags), userData(NULL) {}
 	virtual					~PxShape() {}
-	virtual		bool		isKindOf(const char* name) const { PX_IS_KIND_OF(name, "PxShape", PxRefCounted); }
+	virtual		bool		isKindOf(const char* name) const PX_OVERRIDE { PX_IS_KIND_OF(name, "PxShape", PxRefCounted); }
 };
 
 #if !PX_DOXYGEN

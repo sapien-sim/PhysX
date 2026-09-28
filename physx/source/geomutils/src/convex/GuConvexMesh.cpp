@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -60,7 +60,7 @@ static void initConvexHullData(ConvexHullData& data)
 	data.mPolygons = NULL;
 	data.mBigConvexRawData = NULL;
 	data.mInternal.mInternalExtents = PxVec3(0.0f);
-	data.mInternal.mInternalRadius= 0.0f;
+	data.mInternal.mInternalRadius = 0.0f;
 }
 
 ConvexMesh::ConvexMesh(MeshFactory* factory) :

@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -38,7 +38,6 @@
 // 
 // ****************************************************************************
 
-#include <vector>
 #include "PxPhysicsAPI.h"
 #include "../snippetutils/SnippetUtils.h"
 #include "../snippetcommon/SnippetPrint.h"
@@ -55,8 +54,8 @@ static PxScene*					gScene		= NULL;
 static PxMaterial*				gMaterial	= NULL;
 static PxPvd*					gPvd        = NULL;
 
-std::vector<PxVec3> gContactPositions;
-std::vector<PxVec3> gContactImpulses;
+PxArray<PxVec3> gContactPositions;
+PxArray<PxVec3> gContactImpulses;
 
 static PxFilterFlags contactReportFilterShader(	PxFilterObjectAttributes attributes0, PxFilterData filterData0, 
 												PxFilterObjectAttributes attributes1, PxFilterData filterData1,
@@ -87,7 +86,7 @@ class ContactReportCallback: public PxSimulationEventCallback
 	void onContact(const PxContactPairHeader& pairHeader, const PxContactPair* pairs, PxU32 nbPairs) 
 	{
 		PX_UNUSED((pairHeader));
-		std::vector<PxContactPairPoint> contactPoints;
+		PxArray<PxContactPairPoint> contactPoints;
 		
 		for(PxU32 i=0;i<nbPairs;i++)
 		{
@@ -99,8 +98,8 @@ class ContactReportCallback: public PxSimulationEventCallback
 
 				for(PxU32 j=0;j<contactCount;j++)
 				{
-					gContactPositions.push_back(contactPoints[j].position);
-					gContactImpulses.push_back(contactPoints[j].impulse);
+					gContactPositions.pushBack(contactPoints[j].position);
+					gContactImpulses.pushBack(contactPoints[j].impulse);
 				}
 			}
 		}
@@ -162,11 +161,14 @@ void stepPhysics(bool /*interactive*/)
 
 	gScene->simulate(1.0f/60.0f);
 	gScene->fetchResults(true);
-	printf("%d contact reports\n", PxU32(gContactPositions.size()));
+	printf("%u contact reports\n", PxU32(gContactPositions.size()));
 }
 	
 void cleanupPhysics(bool /*interactive*/)
 {
+	gContactPositions.reset();
+	gContactImpulses.reset();
+    
 	PX_RELEASE(gScene);
 	PX_RELEASE(gDispatcher);
 	PxCloseExtensions();

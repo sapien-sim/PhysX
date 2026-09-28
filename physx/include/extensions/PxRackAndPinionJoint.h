@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -122,7 +122,7 @@ namespace physx
 		*/
 		virtual	bool		setData(PxU32 nbRackTeeth, PxU32 nbPinionTeeth, float rackLength)	= 0;
 
-		virtual	const char*	getConcreteTypeName() const { return "PxRackAndPinionJoint"; }
+		virtual	const char*	getConcreteTypeName() const	PX_OVERRIDE	{ return "PxRackAndPinionJoint"; }
 
 	protected:
 
@@ -130,7 +130,7 @@ namespace physx
 
 		PX_INLINE			PxRackAndPinionJoint(PxBaseFlags baseFlags) : PxJoint(baseFlags)	{}
 
-		virtual	bool		isKindOf(const char* name) const { PX_IS_KIND_OF(name, "PxRackAndPinionJoint", PxJoint);	}
+		virtual	bool		isKindOf(const char* name) const PX_OVERRIDE { PX_IS_KIND_OF(name, "PxRackAndPinionJoint", PxJoint);	}
 	};
 
 #if !PX_DOXYGEN

@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -42,14 +42,13 @@ namespace Sc
 	{
 	public:
 // PX_SERIALIZATION
-											ConstraintCore(const PxEMPTY) : mFlags(PxEmpty), mConnector(NULL), mSim(NULL), mResidual()	{}
+											ConstraintCore(const PxEMPTY) : mFlags(PxEmpty), mConnector(NULL), mSim(NULL) {}
 	PX_FORCE_INLINE	void					setConstraintFunctions(PxConstraintConnector& n, const PxConstraintShaderTable& shaders)
 											{ 
 												mConnector = &n;	
 												mSolverPrep = shaders.solverPrep;
 												mVisualize = shaders.visualize;
 											}
-		static		void					getBinaryMetaData(PxOutputStream& stream);
 //~PX_SERIALIZATION
 											ConstraintCore(PxConstraintConnector& connector, const PxConstraintShaderTable& shaders, PxU32 dataSize);
 											~ConstraintCore()	{}
@@ -92,9 +91,6 @@ namespace Sc
 	PX_FORCE_INLINE	void					setDirty()												{ mIsDirty = 1;						}
 	PX_FORCE_INLINE	void					clearDirty()											{ mIsDirty = 0;						}
 
-	PX_FORCE_INLINE	PxConstraintResidual	getSolverResidual()								const	{ return mResidual;					}
-	PX_FORCE_INLINE	void					setSolverResidual(const PxConstraintResidual& residual)	{ mResidual = residual; }
-
 	private:
 					PxConstraintFlags		mFlags;
 					//In order to support O(1) insert/remove mIsDirty really wants to be an index into NpScene's dirty joint array
@@ -113,7 +109,6 @@ namespace Sc
 					PxReal					mMinResponseThreshold;
 
 					ConstraintSim*			mSim;
-					PxConstraintResidual	mResidual;
 	};
 
 } // namespace Sc

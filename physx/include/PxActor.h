@@ -22,13 +22,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #ifndef PX_ACTOR_H
 #define PX_ACTOR_H
-
 
 #include "PxPhysXConfig.h"
 #include "foundation/PxBounds3.h"
@@ -135,30 +134,22 @@ struct PxActorType
 		eARTICULATION_LINK,
 
 		/**
-		\brief A FEM-based soft body
-		\see PxSoftBody
+		\brief A deformable surface
+		\see PxDeformableSurface
 		*/
-		eSOFTBODY,
+		eDEFORMABLE_SURFACE,
 
 		/**
-		\brief A FEM-based cloth
-		\note In development
-		\see PxFEMCloth
+		\brief A deformable volume
+		\see PxDeformableVolume
 		*/
-		eFEMCLOTH,
+		eDEFORMABLE_VOLUME,
 
 		/**
 		\brief A PBD ParticleSystem
 		\see PxPBDParticleSystem
 		*/
 		ePBD_PARTICLESYSTEM,
-
-		/**
-		\brief A HairSystem
-		\note In development
-		\see PxHairSystem
-		*/
-		eHAIRSYSTEM,
 
 		//! \brief internal use only!
 		eACTOR_COUNT,
@@ -304,7 +295,6 @@ public:
 	*/
 	virtual		PxDominanceGroup	getDominanceGroup() const = 0;
 
-	
 	/**
 	\brief Sets the owner client of an actor.
 
@@ -334,6 +324,42 @@ public:
 	*/
 	virtual		PxAggregate*	getAggregate()	const = 0;
 
+/************************************************************************************************/
+/** \name Environment ID
+*/
+
+	/**
+	\brief Sets the environment ID for this actor.
+
+	The environment ID is an extra built-in filter group for the GPU broadphase. Actors will only collide with each-other if they have the
+	same environment ID.
+	
+	The default value is PX_INVALID_U32. Actors with this ID will collide with other actors, regardless of which environment they are a part of.
+
+	The environment ID must be set before adding the actor to a scene, and cannot change while the actor is in the scene.
+
+	If it is not PX_INVALID_U32, the environment ID must be smaller than 1<<24, i.e. the system does not support more than 1<<24 environments.
+
+	<b>Default:</b> PX_INVALID_U32
+
+	\note	This is not available for CPU broadphases.
+
+	\param[in]	envID	 Environment ID for this actor.
+	\return True if success.
+
+	\see getEnvironmentID()
+	*/
+	virtual	bool	setEnvironmentID(PxU32 envID)	= 0;
+
+	/**
+	\brief Returns the environment ID for this actor.
+
+	\return Environment ID for this actor.
+
+	\see setEnvironmentID()
+	*/
+	virtual	PxU32	getEnvironmentID()		const	= 0;
+
 	//public variables:
 				void*			userData;	//!< user can assign this to whatever, usually to create a 1:1 relationship with a user object.
 
@@ -342,8 +368,6 @@ protected:
 	PX_INLINE					PxActor(PxBaseFlags baseFlags) : PxBase(baseFlags) {}
 	virtual						~PxActor()	{}
 	virtual		bool			isKindOf(const char* name)	const		{ PX_IS_KIND_OF(name, "PxActor", PxBase); }
-
-
 };
 
 #if !PX_DOXYGEN

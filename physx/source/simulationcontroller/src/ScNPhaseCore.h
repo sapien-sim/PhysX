@@ -22,13 +22,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #ifndef SC_NPHASE_CORE_H
 #define SC_NPHASE_CORE_H
 
+#include "PxSceneDesc.h"
 #include "foundation/PxHash.h"
 #include "foundation/PxUserAllocated.h"
 #include "foundation/PxHashSet.h"
@@ -214,6 +215,12 @@ namespace Sc
 		PxMutex mTriggerWriteBackLock;
 	};
 
+	typedef PxPool2<ElementInteractionMarker, 4096>		ElementInteractionMarkerPool;
+	typedef PxPool2<ActorPairContactReportData, 4096>	ActorPairContactReportDataPool;
+	typedef PxPool2<TriggerInteraction, 4096>			TriggerInteractionPool;
+	typedef PxPool2<ActorPairReport, 4096>				ActorPairReportPool;
+	typedef PxPool2<ActorPair, 4096>					ActorPairPool;
+
 	class NPhaseCore : public PxUserAllocated
 	{
 		PX_NOCOPY(NPhaseCore)
@@ -222,12 +229,12 @@ namespace Sc
 		NPhaseCore(Scene& scene, const PxSceneDesc& desc);
 		~NPhaseCore();
 
-		ElementSimInteraction* findInteraction(const ElementSim* element0, const ElementSim* element1);
+		ElementSimInteraction* findInteraction(const ElementSim* element0, const ElementSim* element1)	const;
 
 		void	onTriggerOverlapCreated(const Bp::AABBOverlap* PX_RESTRICT pairs, PxU32 pairCount);
 
-		void	runOverlapFilters(	PxU32 nbToProcess, const Bp::AABBOverlap* PX_RESTRICT pairs, FilterInfo* PX_RESTRICT filterInfo,
-									PxU32& nbToKeep, PxU32& nbToSuppress, PxU32* PX_RESTRICT keepMap);
+		void	runOverlapFilters(	PxU32 nbToProcess, Bp::AABBOverlap* PX_RESTRICT pairs, FilterInfo* PX_RESTRICT filterInfo,
+									PxU32& nbToKeep, PxU32& nbToSuppress)	const;
 
 		void onOverlapRemoved(ElementSim* volume0, ElementSim* volume1, PxU32 ccdPass, void* elemSim, PxsContactManagerOutputIterator& outputs);
 		void onVolumeRemoved(ElementSim* volume, PxU32 flags, PxsContactManagerOutputIterator& outputs);
@@ -351,12 +358,12 @@ namespace Sc
 
 		PxCoalescedHashSet<Interaction*>			mDirtyInteractions;
 		// Pools
-		PxPool<ActorPair>							mActorPairPool;
-		PxPool<ActorPairReport>						mActorPairReportPool;
+		ActorPairPool								mActorPairPool;
+		ActorPairReportPool							mActorPairReportPool;
 		PxPool<ShapeInteraction>					mShapeInteractionPool;
-		PxPool<TriggerInteraction>					mTriggerInteractionPool;
-		PxPool<ActorPairContactReportData>			mActorPairContactReportDataPool;
-		PxPool<ElementInteractionMarker>			mInteractionMarkerPool;
+		TriggerInteractionPool						mTriggerInteractionPool;
+		ActorPairContactReportDataPool				mActorPairContactReportDataPool;
+		ElementInteractionMarkerPool				mInteractionMarkerPool;
 
 		Cm::DelegateTask<NPhaseCore, &NPhaseCore::concludeTriggerInteractionProcessing> mConcludeTriggerInteractionProcessingTask;
 		TriggerProcessingContext					mTriggerProcessingContext;
@@ -381,7 +388,8 @@ namespace Sc
 			mFilterShaderDataSize	(scene.getFilterShaderDataSizeFast()),
 			mFilterCallback			(scene.getFilterCallbackFast()),
 			mKineKineFilteringMode	(scene.getKineKineFilteringMode()),
-			mStaticKineFilteringMode(scene.getStaticKineFilteringMode())
+			mStaticKineFilteringMode(scene.getStaticKineFilteringMode()),
+			mIsDirectGPU			(scene.getFlags() & PxSceneFlag::eENABLE_DIRECT_GPU_API)
 		{
 		}
 
@@ -391,6 +399,7 @@ namespace Sc
 		PxSimulationFilterCallback*			mFilterCallback;
 		const PxPairFilteringMode::Enum		mKineKineFilteringMode;
 		const PxPairFilteringMode::Enum		mStaticKineFilteringMode;
+		const bool 							mIsDirectGPU;
 	};
 
 } // namespace Sc

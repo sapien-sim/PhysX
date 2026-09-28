@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -100,7 +100,7 @@ static bool intersectRayPolyhedron(const Vec3VArg a, const Vec3VArg dir, const P
 	const FloatV zero = FZero();
 	const FloatV eps = FLoad(1e-7f);
 	FloatV tFirst = zero;
-	FloatV tLast= FMax();
+	FloatV tLast = FMax();
 
 	for(PxU32 k=0; k<polyData.mNbPolygons; ++k)
 	{
@@ -170,7 +170,7 @@ static bool testSATCapsulePoly(const CapsuleV& capsule, const PolygonalData& pol
 		const HullPolygonData& polygon = polyData.mPolygons[i];
 		const PxU8* inds1 = polyData.mPolygonVertexRefs + polygon.mVRef8;
 
-		for(PxU32 lStart = 0, lEnd =PxU32(polygon.mNbVerts-1); lStart<polygon.mNbVerts; lEnd = lStart++)
+		for(PxU32 lStart = 0, lEnd = PxU32(polygon.mNbVerts-1); lStart<polygon.mNbVerts; lEnd = lStart++)
 		{
 			//in the vertex space
 			const Vec3V p10 = V3LoadU_SafeReadW(polyData.mVerts[inds1[lStart]]);	// PT: safe because of the way vertex memory is allocated in ConvexHullData
@@ -306,7 +306,7 @@ static void generatedFaceContacts(const CapsuleV& capsule, const PolygonalData& 
 		manifoldContacts[numContacts].mLocalPointA = aToB.transformInv(capsule.p1);
 		manifoldContacts[numContacts].mLocalPointB = V3ScaleAdd(dir, tEnter, capsule.p1);
 		manifoldContacts[numContacts++].mLocalNormalPen = V4SetW(Vec4V_From_Vec3V(normal), tEnter);
-	}	
+	}
 }
 
 static void generateEE(const Vec3VArg p, const Vec3VArg q, const Vec3VArg normal, const Vec3VArg a, const Vec3VArg b, const PxMatTransformV& aToB, 
@@ -428,7 +428,7 @@ bool Gu::generateFullContactManifold(const CapsuleV& capsule, const PolygonalDat
 	Vec3V tNormal = normal;
 	
 	if(doOverlapTest)
-	{	
+	{
 		FloatV minOverlap;
 			
 		//overwrite the normal with the sperating axis
@@ -471,7 +471,7 @@ bool Gu::generateSphereFullContactManifold(const CapsuleV& capsule, const Polygo
 	const FloatVArg contactDist, Vec3V& normal, bool doOverlapTest)
 {
 	if(doOverlapTest)
-	{	
+	{
 		FloatV minOverlap;
 		//overwrite the normal with the sperating axis
 		if(!testPolyDataAxis(capsule, polyData, map, contactDist, minOverlap, normal))

@@ -22,13 +22,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.
 
 #ifndef PX_HEIGHTFIELD_H
 #define PX_HEIGHTFIELD_H
 
+#include "foundation/PxVec3.h"
 #include "geometry/PxHeightFieldFlag.h"
 #include "geometry/PxHeightFieldSample.h"
 #include "common/PxBase.h"
@@ -85,7 +86,7 @@ class PxHeightField : public PxRefCounted
 
 	\see PxPhysics.createHeightField() PxHeightFieldDesc PxHeightFieldGeometry PxShape
 	*/
-	virtual		void	release() = 0;
+	virtual		void	release() PX_OVERRIDE = 0;
 
 	/**
     \brief Writes out the sample data array.
@@ -223,13 +224,13 @@ class PxHeightField : public PxRefCounted
 	*/
 	virtual		PxU32	getTimestamp()	const	= 0;
 
-	virtual	const char*	getConcreteTypeName() const { return "PxHeightField"; }
+	virtual	const char*	getConcreteTypeName() const	PX_OVERRIDE	PX_FINAL	{ return "PxHeightField"; }
 
 protected:
 	PX_INLINE			PxHeightField(PxType concreteType, PxBaseFlags baseFlags) : PxRefCounted(concreteType, baseFlags) {}
 	PX_INLINE			PxHeightField(PxBaseFlags baseFlags) : PxRefCounted(baseFlags) {}
 	virtual				~PxHeightField() {}
-	virtual	bool		isKindOf(const char* name) const { PX_IS_KIND_OF(name, "PxHeightField", PxRefCounted); }
+	virtual	bool		isKindOf(const char* name) const PX_OVERRIDE { PX_IS_KIND_OF(name, "PxHeightField", PxRefCounted); }
 };
 
 #if !PX_DOXYGEN

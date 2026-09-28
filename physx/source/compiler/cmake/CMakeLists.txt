@@ -22,13 +22,26 @@
 ## (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ## OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ##
-## Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+## Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 
-cmake_minimum_required(VERSION 3.7)
+cmake_minimum_required(VERSION 3.21)
 
-project(PhysX C CXX)
+# Only call project() if this is the top-level CMakeLists.txt
+# When used via FetchContent, the parent already called project()
+# Calling project() again would reset CMAKE_CXX_FLAGS_* variables
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  project(PhysX C CXX)
+endif()
 
 CMAKE_POLICY(SET CMP0057 NEW) # Enable IN_LIST
+
+# Check if this is a public release build
+IF(NOT DEFINED PUBLIC_RELEASE)
+    SET(PUBLIC_RELEASE 0) # Default to private release
+ENDIF()
+IF(PUBLIC_RELEASE)
+    MESSAGE("Building for PUBLIC RELEASE")
+ENDIF()
 
 OPTION(PX_SCALAR_MATH "Disable SIMD math" OFF)
 OPTION(PX_GENERATE_STATIC_LIBRARIES "Generate static libraries" OFF)
@@ -52,6 +65,12 @@ ENDIF()
 MESSAGE("PhysX Build Platform: " ${TARGET_BUILD_PLATFORM})
 MESSAGE("Using CXX Compiler: " ${CMAKE_CXX_COMPILER})
 
+# NvidiaBuildOptions.cmake sets up WINCRT_DEBUG/WINCRT_NDEBUG variables,
+# CMAKE_*_POSTFIX values, and platform-specific compiler flags.
+# PhysXConfigurationTypes.cmake is NOT included here because it would
+# FORCE-overwrite the flags NvidiaBuildOptions just set. It is only used
+# by the FetchContent entry point (physx/CMakeLists.txt) where
+# NvidiaBuildOptions is not included.
 INCLUDE(NvidiaBuildOptions)
 
 IF(CMAKE_CONFIGURATION_TYPES)

@@ -22,7 +22,7 @@
 ## (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ## OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ##
-## Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+## Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 
 #
 # Build LowLevel common
@@ -39,11 +39,10 @@ SET(LL_API_DIR ${LL_SOURCE_DIR}/api/)
 SET(LL_API_HEADERS	
 	${LL_API_DIR}/include/PxsMaterialShared.h
 	${LL_API_DIR}/include/PxsMaterialCore.h
-	${LL_API_DIR}/include/PxsFEMSoftBodyMaterialCore.h
-	${LL_API_DIR}/include/PxsFEMClothMaterialCore.h
+	${LL_API_DIR}/include/PxsDeformableSurfaceMaterialCore.h
+	${LL_API_DIR}/include/PxsDeformableVolumeMaterialCore.h
 	${LL_API_DIR}/include/PxsPBDMaterialCore.h
 	${LL_API_DIR}/include/PxsMaterialManager.h
-	${LL_API_DIR}/include/PxvConfig.h
 	${LL_API_DIR}/include/PxvDynamics.h
 	${LL_API_DIR}/include/PxvGeometry.h
 	${LL_API_DIR}/include/PxvGlobals.h
@@ -100,18 +99,20 @@ SET(LL_SOFTWARE_HEADERS
 	${LL_SOFTWARE_DIR}/include/PxsContactManagerState.h
 	${LL_SOFTWARE_DIR}/include/PxsContext.h
 	${LL_SOFTWARE_DIR}/include/PxsHeapMemoryAllocator.h
+	${LL_SOFTWARE_DIR}/include/PxsHeapStats.h
 	${LL_SOFTWARE_DIR}/include/PxsIslandManagerTypes.h
 	${LL_SOFTWARE_DIR}/include/PxsIslandSim.h
+	${LL_SOFTWARE_DIR}/include/PxsPartitionEdge.h
 	${LL_SOFTWARE_DIR}/include/PxsKernelWrangler.h
 	${LL_SOFTWARE_DIR}/include/PxsMaterialCombiner.h
 	${LL_SOFTWARE_DIR}/include/PxsMemoryManager.h
 	${LL_SOFTWARE_DIR}/include/PxsNphaseImplementationContext.h
 	${LL_SOFTWARE_DIR}/include/PxsRigidBody.h
     ${LL_SOFTWARE_DIR}/include/PxsParticleBuffer.h
-	${LL_SOFTWARE_DIR}/include/PxsShapeSim.h
 	${LL_SOFTWARE_DIR}/include/PxsSimpleIslandManager.h
 	${LL_SOFTWARE_DIR}/include/PxsSimulationController.h
 	${LL_SOFTWARE_DIR}/include/PxsTransformCache.h
+	${LL_SOFTWARE_DIR}/include/PxsCachedTransform.h
 	${LL_SOFTWARE_DIR}/include/PxsNphaseCommon.h
 	${LL_SOFTWARE_DIR}/include/PxvNphaseImplementationContext.h
 )

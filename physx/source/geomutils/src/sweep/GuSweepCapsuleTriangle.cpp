@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -35,7 +35,7 @@
 
 using namespace physx;
 using namespace Gu;
-using namespace physx::aos;
+using namespace aos;
 
 #define COLINEARITY_EPSILON 0.00001f
 
@@ -48,7 +48,7 @@ using namespace physx::aos;
 	extrudedTris[nbExtrudedTris].denormalizedNormal(extrudedTrisNormals[nbExtrudedTris]);	\
 	nbExtrudedTris++;}
 
-#define OUTPUT_TRI2(p0, p1, p2, d){				\
+#define OUTPUT_TRI2(p0, p1, p2, d){					\
 	PxTriangle& tri = extrudedTris[nbExtrudedTris];	\
 	tri.verts[0] = p0;								\
 	tri.verts[1] = p1;								\
@@ -80,7 +80,7 @@ bool Gu::sweepCapsuleTriangles_Precise(	PxU32 nbTris, const PxTriangle* PX_RESTR
 
 	const bool meshBothSides = hitFlags & PxHitFlag::eMESH_BOTH_SIDES;
 	const bool doBackfaceCulling = !isDoubleSided && !meshBothSides;
-	const bool anyHit = hitFlags & PxHitFlag::eMESH_ANY;
+	const bool anyHit = hitFlags & PxHitFlag::eANY_HIT;
 	const bool testInitialOverlap = !(hitFlags & PxHitFlag::eASSUME_NO_INITIAL_OVERLAP);
 
 	// PT: we can fallback to sphere sweep:

@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.
 
@@ -146,6 +146,26 @@ PxI64 PxAtomicExchange(volatile PxI64* val, PxI64 val2)
 	} while(PxAtomicCompareExchange(val, newVal, oldVal) != oldVal);
 
 	return oldVal;
+}
+
+PxI32 PxAtomicOr(volatile PxI32* val, PxI32 mask)
+{
+	return __sync_fetch_and_or(val, mask);
+}
+
+PxI64 PxAtomicOr(volatile PxI64* val, PxI64 mask)
+{
+	return __sync_fetch_and_or(val, mask);
+}
+
+PxI32 PxAtomicAnd(volatile PxI32* val, PxI32 mask)
+{
+	return __sync_fetch_and_and(val, mask);
+}
+
+PxI64 PxAtomicAnd(volatile PxI64* val, PxI64 mask)
+{
+	return __sync_fetch_and_and(val, mask);
 }
 
 } // namespace physx

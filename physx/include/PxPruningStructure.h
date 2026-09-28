@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -61,7 +61,7 @@ public:
 	/**
 	\brief Release this object.
 	*/
-	virtual void				release() = 0;
+	virtual void				release() PX_OVERRIDE = 0;
 
 	/**
 	\brief Retrieve rigid actors in the pruning structure.
@@ -112,12 +112,12 @@ public:
 	*/
 	virtual	const void*			getDynamicMergeData()	const	= 0;
 
-	virtual	const char*			getConcreteTypeName() const	{ return "PxPruningStructure";	}
+	virtual	const char*			getConcreteTypeName() const	PX_OVERRIDE	PX_FINAL	{ return "PxPruningStructure";	}
 protected:
 	PX_INLINE					PxPruningStructure(PxType concreteType, PxBaseFlags baseFlags) : PxBase(concreteType, baseFlags) {}
 	PX_INLINE					PxPruningStructure(PxBaseFlags baseFlags) : PxBase(baseFlags) {}
 	virtual						~PxPruningStructure()	{}
-	virtual		bool			isKindOf(const char* name)	const		{ PX_IS_KIND_OF(name, "PxPruningStructure", PxBase); }
+	virtual		bool			isKindOf(const char* name)	const PX_OVERRIDE		{ PX_IS_KIND_OF(name, "PxPruningStructure", PxBase); }
 };
 
 

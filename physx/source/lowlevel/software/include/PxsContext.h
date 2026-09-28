@@ -22,14 +22,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #ifndef PXS_CONTEXT_H
 #define PXS_CONTEXT_H
 
-#include "foundation/PxPinnedArray.h"
+#include "CmPinnableArray.h"
+#include "foundation/PxPool.h"
 #include "PxVisualizationParameter.h"
 #include "PxSceneDesc.h"
 
@@ -51,16 +52,13 @@
 
 #include "PxsTransformCache.h"
 #include "GuPersistentContactManifold.h"
+#include "PxcNpThreadContext.h"
 
+namespace physx
+{
 #if PX_SUPPORT_GPU_PHYSX
-namespace physx
-{
-	class PxCudaContextManager;
-}
+class PxCudaContextManager;
 #endif
-
-namespace physx
-{
 class PxsRigidBody;
 struct PxcConstraintBlock;
 class PxsMaterialManager;
@@ -75,7 +73,6 @@ namespace Cm
 
 namespace IG
 {
-	class SimpleIslandManager;
 	typedef PxU32 EdgeIndex;
 }
 
@@ -92,10 +89,10 @@ class PxsContext : public PxUserAllocated, public PxcNpContext
 {
 												PX_NOCOPY(PxsContext)
 public:
-												PxsContext(	const PxSceneDesc& desc, PxTaskManager*, Cm::FlushPool&, PxCudaContextManager*, PxU32 poolSlabSize, PxU64 contextID);
+												PxsContext(const PxSceneDesc& desc, PxTaskManager*, Cm::FlushPool&, PxCudaContextManager*, PxU32 poolSlabSize, PxU64 contextID);
 												~PxsContext();
 
-					void						createTransformCache(PxVirtualAllocatorCallback& allocatorCallback);
+					void						createTransformCache(Cm::VirtualAllocatorCallback& allocator, Cm::PinnableAllocatorFallback::Enum fallback);
 
 					PxsContactManager*			createContactManager(PxsContactManager* contactManager, bool useCCD);
 					void						createCache(Gu::Cache& cache, PxGeometryType::Enum geomType0, PxGeometryType::Enum geomType1);
@@ -112,7 +109,7 @@ public:
     // resource-related
 					void						setScratchBlock(void* addr, PxU32 size);
 
-	PX_FORCE_INLINE	void						setContactDistance(const PxFloatArrayPinned* contactDistances)	{ mContactDistances = contactDistances;	}
+	PX_FORCE_INLINE	void						setContactDistance(const Cm::PinnableArray<PxReal>* contactDistances)	{ mContactDistances = contactDistances;	}
 
 	// Task-related
 					void						updateContactManager(PxReal dt, bool hasContactDistanceChanged, PxBaseTask* continuation, 
@@ -124,11 +121,11 @@ public:
 					void						resetThreadContexts();
 
 	// Manager status change
-					bool						getManagerTouchEventCount(int* newTouch, int* lostTouch, int* ccdTouch) const;
-					bool						fillManagerTouchEvents(
-													PxvContactManagerTouchEvent* newTouch, PxI32& newTouchCount,
-													PxvContactManagerTouchEvent* lostTouch, PxI32& lostTouchCount,
-													PxvContactManagerTouchEvent* ccdTouch, PxI32& ccdTouchCount);
+					bool						getManagerTouchEventCount(PxU32* newTouch, PxU32* lostTouch, PxU32* ccdTouch) const;
+					void						fillManagerTouchEvents(
+												PxArray<PxvContactManagerTouchEvent>& newTouchEvents,
+												PxArray<PxvContactManagerTouchEvent>& lostTouchEvents,
+												PxArray<PxvContactManagerTouchEvent>* ccdTouchEvents);
 
 					void						beginUpdate();
 
@@ -155,12 +152,13 @@ public:
 													mVisualizationParams[param] = value;
 												}
 
-	PX_FORCE_INLINE	void						setVisualizationCullingBox(const PxBounds3& box)	{ mVisualizationCullingBox = box;					}
-	PX_FORCE_INLINE	const PxBounds3&			getVisualizationCullingBox()				const	{ return mVisualizationCullingBox;					}
+	PX_FORCE_INLINE	void						setVisualizationCullingBox(const PxBounds3& box)	{ mVisualizationCullingBox = box;	}
+	PX_FORCE_INLINE	const PxBounds3&			getVisualizationCullingBox()				const	{ return mVisualizationCullingBox;	}
 
-	PX_FORCE_INLINE	bool						getPCM()					const	{ return mPCM;														}
-	PX_FORCE_INLINE	bool						getContactCacheFlag()		const	{ return mContactCache;												}
-	PX_FORCE_INLINE	bool						getCreateAveragePoint()		const	{ return mCreateAveragePoint;										}
+	PX_FORCE_INLINE	bool						getPCM()					const	{ return mPCM;					}
+	PX_FORCE_INLINE	bool						getContactCacheFlag()		const	{ return mContactCache;			}
+	PX_FORCE_INLINE	bool						getCreateAveragePoint()		const	{ return mCreateAveragePoint;	}
+	PX_FORCE_INLINE	bool						getCCDFlag()				const	{ return mCCD;					}
 
 	// general stuff
 					void						shiftOrigin(const PxVec3& shift);
@@ -178,7 +176,7 @@ public:
 	PX_FORCE_INLINE	PxvNphaseImplementationContext*	getNphaseFallbackImplementationContext()	const							{ return mNpFallbackImplementationContext;	}
 	PX_FORCE_INLINE	void							setNphaseFallbackImplementationContext(PxvNphaseImplementationContext* ctx)	{ mNpFallbackImplementationContext = ctx;	}
 
-					PxU32							getMaxPatchCount() const				{ return mMaxPatches; }
+	PX_FORCE_INLINE	PxU32							getMaxPatchCount() const				{ return mMaxPatches; }
 
 	PX_FORCE_INLINE	PxcNpThreadContext*			getNpThreadContext()
 	{
@@ -204,9 +202,9 @@ public:
 
 	PX_FORCE_INLINE	void						clearManagerTouchEvents();
 
-	PX_FORCE_INLINE Cm::PoolList<PxsContactManager, PxsContext>& getContactManagerPool()
+	PX_FORCE_INLINE Cm::PoolList<PxsContactManager>& getContactManagerPool()
 	{
-		return this->mContactManagerPool;
+		return mContactManagerPool;
 	}
 
 	PX_FORCE_INLINE void setActiveContactManager(const PxsContactManager* manager, PxIntBool useCCD)
@@ -240,19 +238,17 @@ private:
 												mNpThreadContextPool;
 
 	// Contact managers
-	Cm::PoolList<PxsContactManager, PxsContext>		mContactManagerPool;
-	PxPool<Gu::LargePersistentContactManifold>		mManifoldPool;
-	PxPool<Gu::SpherePersistentContactManifold>		mSphereManifoldPool;
+	Cm::PoolList<PxsContactManager>				mContactManagerPool;
+	PxPool<Gu::LargePersistentContactManifold>	mManifoldPool;
+	PxPool<Gu::SpherePersistentContactManifold>	mSphereManifoldPool;
 	
-//	PxBitMap				mActiveContactManager;
-	PxBitMap				mActiveContactManagersWithCCD; //KS - adding to filter any pairs that had a touch
-	PxBitMap				mContactManagersWithCCDTouch; //KS - adding to filter any pairs that had a touch
-	PxBitMap				mContactManagerTouchEvent;
-	//Cm::BitMap				mContactManagerPatchChangeEvent;
+	PxBitMap									mActiveContactManagersWithCCD; //KS - adding to filter any pairs that had a touch
+	PxBitMap									mContactManagersWithCCDTouch; //KS - adding to filter any pairs that had a touch
+	PxBitMap									mContactManagerTouchEvent;
 
-	PxU32					mCMTouchEventCount[PXS_TOUCH_EVENT_COUNT];
+	PxU32										mCMTouchEventCount[PXS_TOUCH_EVENT_COUNT];
 
-	PxMutex									mLock;
+	PxMutex										mLock;
 
 	PxContactModifyCallback*					mContactModifyCallback;
 
@@ -270,21 +266,17 @@ private:
 
 					PxCudaContextManager*		mCudaContextManager;
 
-					//	PxU32					mTouchesLost;
-					//	PxU32					mTouchesFound;
-
 						// PX_ENABLE_SIM_STATS
 					PxvSimStats					mSimStats;
 					bool						mPCM;
 					bool						mContactCache;
-					bool						mCreateAveragePoint;
+					const bool					mCreateAveragePoint;
+					const bool					mCCD;
 
-					PxsTransformCache*			mTransformCache;
-					const PxFloatArrayPinned*	mContactDistances;
-
-					PxU32						mMaxPatches;
-
-					const PxU64					mContextID;
+					PxsTransformCache*					mTransformCache;
+					const Cm::PinnableArray<PxReal>*	mContactDistances;
+					PxU32								mMaxPatches;
+					const PxU64							mContextID;
 
 					friend class PxsCCDContext;
 					friend class PxsNphaseImplementationContext;

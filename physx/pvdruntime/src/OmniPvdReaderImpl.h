@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -32,48 +32,52 @@
 #include "OmniPvdReader.h"
 #include "OmniPvdLog.h"
 
+
 class OmniPvdReaderImpl : public OmniPvdReader {
 public:
 	OmniPvdReaderImpl();
 	~OmniPvdReaderImpl();
 
-	void OMNI_PVD_CALL setLogFunction(OmniPvdLogFunction logFunction);
-	void OMNI_PVD_CALL setReadStream(OmniPvdReadStream& stream);
-	bool OMNI_PVD_CALL startReading(OmniPvdVersionType& majorVersion, OmniPvdVersionType& minorVersion, OmniPvdVersionType& patch);
-	OmniPvdCommand::Enum OMNI_PVD_CALL getNextCommand();
+	void OMNI_PVD_CALL setLogFunction(OmniPvdLogFunction logFunction) override;
+	void OMNI_PVD_CALL setReadStream(OmniPvdReadStream& stream) override;
+	bool OMNI_PVD_CALL startReading(OmniPvdVersionType& majorVersion, OmniPvdVersionType& minorVersion, OmniPvdVersionType& patch) override;
+	OmniPvdCommand::Enum OMNI_PVD_CALL getNextCommand() override;
 
-	OmniPvdVersionType OMNI_PVD_CALL getMajorVersion();
-	OmniPvdVersionType OMNI_PVD_CALL getMinorVersion();
-	OmniPvdVersionType OMNI_PVD_CALL getPatch();
+	OmniPvdVersionType OMNI_PVD_CALL getMajorVersion() override;
+	OmniPvdVersionType OMNI_PVD_CALL getMinorVersion() override;
+	OmniPvdVersionType OMNI_PVD_CALL getPatch() override;
 
-	OmniPvdContextHandle OMNI_PVD_CALL getContextHandle();
-	OmniPvdObjectHandle OMNI_PVD_CALL getObjectHandle();
+	OmniPvdContextHandle OMNI_PVD_CALL getContextHandle() override;
+	OmniPvdObjectHandle OMNI_PVD_CALL getObjectHandle() override;
 
-	OmniPvdClassHandle OMNI_PVD_CALL getClassHandle();
-	OmniPvdClassHandle OMNI_PVD_CALL getBaseClassHandle();
-	OmniPvdAttributeHandle OMNI_PVD_CALL getAttributeHandle();
+	OmniPvdClassHandle OMNI_PVD_CALL getClassHandle() override;
+	OmniPvdClassHandle OMNI_PVD_CALL getBaseClassHandle() override;
+	OmniPvdAttributeHandle OMNI_PVD_CALL getAttributeHandle() override;
 
-	const char* OMNI_PVD_CALL getClassName();
-	const char* OMNI_PVD_CALL getAttributeName();
-	const char* OMNI_PVD_CALL getObjectName();
+	const char* OMNI_PVD_CALL getClassName() override;
+	const char* OMNI_PVD_CALL getAttributeName() override;
+	const char* OMNI_PVD_CALL getObjectName() override;
 
-	const uint8_t* OMNI_PVD_CALL getAttributeDataPointer();
-	OmniPvdDataType::Enum OMNI_PVD_CALL getAttributeDataType();
-	uint32_t OMNI_PVD_CALL getAttributeDataLength();
-	uint32_t OMNI_PVD_CALL getAttributeNumberElements();
-	OmniPvdClassHandle OMNI_PVD_CALL getAttributeClassHandle();
+	const uint8_t* OMNI_PVD_CALL getAttributeDataPointer() override;
+	OmniPvdDataType::Enum OMNI_PVD_CALL getAttributeDataType() override;
+	uint32_t OMNI_PVD_CALL getAttributeDataLength() override;
+	uint32_t OMNI_PVD_CALL getAttributeNumberElements() override;
+	OmniPvdClassHandle OMNI_PVD_CALL getAttributeClassHandle() override;
 	
 	uint8_t OMNI_PVD_CALL getAttributeNumberHandles();
 	OmniPvdAttributeHandle* OMNI_PVD_CALL getAttributeHandles();
 
-	uint64_t OMNI_PVD_CALL getFrameTimeStart();
-	uint64_t OMNI_PVD_CALL getFrameTimeStop();
-	
-	OmniPvdClassHandle OMNI_PVD_CALL getEnumClassHandle();
-	uint32_t OMNI_PVD_CALL getEnumValue();
+	uint64_t OMNI_PVD_CALL getFrameTimeStart() override;
+	uint64_t OMNI_PVD_CALL getFrameTimeStop() override;
+
+	bool OMNI_PVD_CALL getMessageData(const char*& message, const char*& file, uint32_t& line, uint32_t& type, OmniPvdClassHandle& handle) override;
+
+	OmniPvdClassHandle OMNI_PVD_CALL getEnumClassHandle() override;
+	uint32_t OMNI_PVD_CALL getEnumValue() override;
 
 	// Internal helper
 	void readLongDataFromStream(uint32_t streamByteLen);
+	bool readStringFromStream(char* string, uint16_t& stringLength);
 	void resetCommandParams();
 
 	OmniPvdLog mLog;
@@ -95,12 +99,9 @@ public:
 	uint32_t mCmdBaseClassHandle;
 	uint32_t mCmdAttributeHandle;
 		
-	////////////////////////////////////////////////////////////////////////////////
-	// TODO : take care of buffer length limit at read time!
-	////////////////////////////////////////////////////////////////////////////////
-	char mCmdClassName[1000];
-	char mCmdAttributeName[1000];
-	char mCmdObjectName[1000];
+	char mCmdClassName[OMNI_PVD_MAX_STRING_LENGTH];
+	char mCmdAttributeName[OMNI_PVD_MAX_STRING_LENGTH];
+	char mCmdObjectName[OMNI_PVD_MAX_STRING_LENGTH];
 
 	uint16_t mCmdClassNameLen;
 	uint16_t mCmdAttributeNameLen;
@@ -125,6 +126,16 @@ public:
 
 	bool mIsReadingStarted;
 	uint8_t mReadBaseClassHandle;
+
+	// Messages
+	bool mCmdMessageParsed;
+	uint16_t mCmdMessageLength;
+	char mCmdMessage[OMNI_PVD_MAX_STRING_LENGTH];
+	uint16_t mCmdMessageFileLength;
+	char mCmdMessageFile[OMNI_PVD_MAX_STRING_LENGTH];
+	uint32_t mCmdMessageLine;
+	uint32_t mCmdMessageType;
+	OmniPvdClassHandle mCmdMessageClassHandle;
 };
 
 #endif

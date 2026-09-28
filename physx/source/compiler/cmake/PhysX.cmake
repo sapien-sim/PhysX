@@ -22,7 +22,7 @@
 ## (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ## OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ##
-## Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+## Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 
 #
 # Build PhysX (PROJECT not SOLUTION) common
@@ -43,7 +43,6 @@ include(${PHYSX_ROOT_DIR}/${PROJECT_CMAKE_FILES_DIR}/${TARGET_BUILD_PLATFORM}/Ph
 
 SET(PHYSX_HEADERS
 	${PHYSX_ROOT_DIR}/include/PxActor.h
-	${PHYSX_ROOT_DIR}/include/PxActorData.h
 	${PHYSX_ROOT_DIR}/include/PxAggregate.h
 	${PHYSX_ROOT_DIR}/include/PxArticulationFlag.h
 	${PHYSX_ROOT_DIR}/include/PxArticulationJointReducedCoordinate.h
@@ -52,26 +51,26 @@ SET(PHYSX_HEADERS
 	${PHYSX_ROOT_DIR}/include/PxArticulationTendon.h
 	${PHYSX_ROOT_DIR}/include/PxArticulationTendonData.h
 	${PHYSX_ROOT_DIR}/include/PxArticulationMimicJoint.h
-	${PHYSX_ROOT_DIR}/include/PxAttachment.h
 	${PHYSX_ROOT_DIR}/include/PxBroadPhase.h
 	${PHYSX_ROOT_DIR}/include/PxClient.h
-	${PHYSX_ROOT_DIR}/include/PxConeLimitedConstraint.h
 	${PHYSX_ROOT_DIR}/include/PxConstraint.h
 	${PHYSX_ROOT_DIR}/include/PxConstraintDesc.h
 	${PHYSX_ROOT_DIR}/include/PxContact.h
 	${PHYSX_ROOT_DIR}/include/PxContactModifyCallback.h
+	${PHYSX_ROOT_DIR}/include/PxDeformableAttachment.h
+	${PHYSX_ROOT_DIR}/include/PxDeformableElementFilter.h
+	${PHYSX_ROOT_DIR}/include/PxDeformableBody.h
+	${PHYSX_ROOT_DIR}/include/PxDeformableBodyFlag.h
+	${PHYSX_ROOT_DIR}/include/PxDeformableSurface.h
+	${PHYSX_ROOT_DIR}/include/PxDeformableSurfaceFlag.h
+	${PHYSX_ROOT_DIR}/include/PxDeformableVolume.h
+	${PHYSX_ROOT_DIR}/include/PxDeformableVolumeFlag.h
 	${PHYSX_ROOT_DIR}/include/PxDeletionListener.h
-	${PHYSX_ROOT_DIR}/include/PxFEMParameter.h
-	${PHYSX_ROOT_DIR}/include/PxFEMClothFlags.h
 	${PHYSX_ROOT_DIR}/include/PxFiltering.h
-	${PHYSX_ROOT_DIR}/include/PxForceMode.h
-	${PHYSX_ROOT_DIR}/include/PxHairSystemFlag.h
 	${PHYSX_ROOT_DIR}/include/PxImmediateMode.h
-	${PHYSX_ROOT_DIR}/include/PxLockedData.h
 	${PHYSX_ROOT_DIR}/include/PxNodeIndex.h
 	${PHYSX_ROOT_DIR}/include/PxParticleBuffer.h
 	${PHYSX_ROOT_DIR}/include/PxParticleGpu.h
-	${PHYSX_ROOT_DIR}/include/PxParticleSolverType.h
 	${PHYSX_ROOT_DIR}/include/PxParticleSystem.h
 	${PHYSX_ROOT_DIR}/include/PxParticleSystemFlag.h
 	${PHYSX_ROOT_DIR}/include/PxPBDParticleSystem.h
@@ -94,33 +93,25 @@ SET(PHYSX_HEADERS
 	${PHYSX_ROOT_DIR}/include/PxShape.h
 	${PHYSX_ROOT_DIR}/include/PxSimulationEventCallback.h
 	${PHYSX_ROOT_DIR}/include/PxSimulationStatistics.h
-	${PHYSX_ROOT_DIR}/include/PxSoftBody.h
-	${PHYSX_ROOT_DIR}/include/PxSoftBodyFlag.h
 	${PHYSX_ROOT_DIR}/include/PxSparseGridParams.h
 	${PHYSX_ROOT_DIR}/include/PxVisualizationParameter.h
-    ${PHYSX_ROOT_DIR}/include/PxIsosurfaceExtraction.h
-    ${PHYSX_ROOT_DIR}/include/PxSmoothing.h
-    ${PHYSX_ROOT_DIR}/include/PxAnisotropy.h
-    ${PHYSX_ROOT_DIR}/include/PxParticleNeighborhoodProvider.h
-    ${PHYSX_ROOT_DIR}/include/PxArrayConverter.h
-    ${PHYSX_ROOT_DIR}/include/PxLineStripSkinning.h
+	${PHYSX_ROOT_DIR}/include/PxIsosurfaceExtraction.h
+	${PHYSX_ROOT_DIR}/include/PxSmoothing.h
+	${PHYSX_ROOT_DIR}/include/PxAnisotropy.h
+	${PHYSX_ROOT_DIR}/include/PxParticleNeighborhoodProvider.h
+	${PHYSX_ROOT_DIR}/include/PxArrayConverter.h
 	${PHYSX_ROOT_DIR}/include/PxSDFBuilder.h
-	${PHYSX_ROOT_DIR}/include/PxResidual.h
 	${PHYSX_ROOT_DIR}/include/PxDirectGPUAPI.h
+    ${PHYSX_ROOT_DIR}/include/PxDeformableSkinning.h
 )
-IF(NOT PX_GENERATE_SOURCE_DISTRO AND NOT PUBLIC_RELEASE)
-	LIST(APPEND PHYSX_HEADERS
-		${PHYSX_ROOT_DIR}/include/PxFEMCloth.h
-		${PHYSX_ROOT_DIR}/include/PxHairSystem.h
-	)
-ENDIF()
+
 SOURCE_GROUP(include FILES ${PHYSX_HEADERS})
 
 SET(PHYSX_MATERIAL_HEADERS
 	${PHYSX_ROOT_DIR}/include/PxBaseMaterial.h
-	${PHYSX_ROOT_DIR}/include/PxFEMMaterial.h
-	${PHYSX_ROOT_DIR}/include/PxFEMSoftBodyMaterial.h
-	${PHYSX_ROOT_DIR}/include/PxFEMClothMaterial.h
+	${PHYSX_ROOT_DIR}/include/PxDeformableMaterial.h
+	${PHYSX_ROOT_DIR}/include/PxDeformableSurfaceMaterial.h
+	${PHYSX_ROOT_DIR}/include/PxDeformableVolumeMaterial.h
 	${PHYSX_ROOT_DIR}/include/PxParticleMaterial.h
 	${PHYSX_ROOT_DIR}/include/PxPBDMaterial.h
 	${PHYSX_ROOT_DIR}/include/PxMaterial.h
@@ -132,8 +123,6 @@ SET(PHYSX_COMMON_HEADERS
 	${PHYSX_ROOT_DIR}/include/common/PxCollection.h
 	${PHYSX_ROOT_DIR}/include/common/PxCoreUtilityTypes.h
 	${PHYSX_ROOT_DIR}/include/common/PxInsertionCallback.h
-	${PHYSX_ROOT_DIR}/include/common/PxMetaData.h
-	${PHYSX_ROOT_DIR}/include/common/PxMetaDataFlags.h
 	${PHYSX_ROOT_DIR}/include/common/PxPhysXCommonConfig.h
 	${PHYSX_ROOT_DIR}/include/common/PxProfileZone.h
 	${PHYSX_ROOT_DIR}/include/common/PxRenderBuffer.h
@@ -195,6 +184,8 @@ SET(PHYSX_OMNIPVD_SOURCE
     ${PX_SOURCE_DIR}/omnipvd/NpOmniPvdSetData.h
 	${PX_SOURCE_DIR}/omnipvd/NpOmniPvdMetaData.h
 	${PX_SOURCE_DIR}/omnipvd/NpOmniPvdMetaData.cpp
+  ${PX_SOURCE_DIR}/omnipvd/NpOmniPvdSimulationControllerCallbacks.h
+  ${PX_SOURCE_DIR}/omnipvd/NpOmniPvdSimulationControllerCallbacks.cpp
 	${PX_SOURCE_DIR}/omnipvd/OmniPvdPxSampler.cpp
 	${PX_SOURCE_DIR}/omnipvd/OmniPvdPxSampler.h
 	${PX_SOURCE_DIR}/omnipvd/OmniPvdChunkAlloc.cpp
@@ -224,13 +215,13 @@ SOURCE_GROUP(src\\immediatemode FILES ${PHYSX_IMMEDIATEMODE_SOURCE})
 
 SET(PHYSX_MATERIALS_SOURCE
 	${PX_SOURCE_DIR}/NpMaterial.cpp
-	${PX_SOURCE_DIR}/NpFEMSoftBodyMaterial.cpp
-	${PX_SOURCE_DIR}/NpFEMClothMaterial.cpp
+	${PX_SOURCE_DIR}/NpDeformableSurfaceMaterial.cpp
+	${PX_SOURCE_DIR}/NpDeformableVolumeMaterial.cpp
 	${PX_SOURCE_DIR}/NpPBDMaterial.cpp
-	${PX_SOURCE_DIR}/NpPBDMaterial.h
-	${PX_SOURCE_DIR}/NpFEMSoftBodyMaterial.h
-	${PX_SOURCE_DIR}/NpFEMClothMaterial.h
 	${PX_SOURCE_DIR}/NpMaterial.h
+	${PX_SOURCE_DIR}/NpDeformableSurfaceMaterial.h
+	${PX_SOURCE_DIR}/NpDeformableVolumeMaterial.h
+	${PX_SOURCE_DIR}/NpPBDMaterial.h
 )
 SOURCE_GROUP(src\\materials FILES ${PHYSX_MATERIALS_SOURCE})
 
@@ -251,14 +242,14 @@ SOURCE_GROUP(src\\articulations FILES ${PHYSX_ARTICULATIONS_SOURCE})
 SET(PHYSX_CORE_SOURCE
 	${PX_SOURCE_DIR}/NpActor.cpp
 	${PX_SOURCE_DIR}/NpAggregate.cpp
-	${PX_SOURCE_DIR}/NpSoftBody.cpp
-	${PX_SOURCE_DIR}/NpFEMCloth.cpp
+	${PX_SOURCE_DIR}/NpDeformableAttachment.cpp
+	${PX_SOURCE_DIR}/NpDeformableElementFilter.cpp
+	${PX_SOURCE_DIR}/NpDeformableSurface.cpp
+	${PX_SOURCE_DIR}/NpDeformableVolume.cpp
 	${PX_SOURCE_DIR}/NpPBDParticleSystem.cpp
 	${PX_SOURCE_DIR}/NpParticleBuffer.cpp
-	${PX_SOURCE_DIR}/NpHairSystem.cpp
 	${PX_SOURCE_DIR}/NpConstraint.cpp
 	${PX_SOURCE_DIR}/NpFactory.cpp
-	${PX_SOURCE_DIR}/NpMetaData.cpp
 	${PX_SOURCE_DIR}/NpPhysics.cpp
 	${PX_SOURCE_DIR}/NpBounds.h
 	${PX_SOURCE_DIR}/NpBounds.cpp
@@ -277,11 +268,12 @@ SET(PHYSX_CORE_SOURCE
 	${PX_SOURCE_DIR}/NpActor.h
 	${PX_SOURCE_DIR}/NpActorTemplate.h
 	${PX_SOURCE_DIR}/NpAggregate.h
-	${PX_SOURCE_DIR}/NpSoftBody.h
-	${PX_SOURCE_DIR}/NpFEMCloth.h
+	${PX_SOURCE_DIR}/NpDeformableSurface.h
+	${PX_SOURCE_DIR}/NpDeformableVolume.h
+	${PX_SOURCE_DIR}/NpDeformableAttachment.h
+	${PX_SOURCE_DIR}/NpDeformableElementFilter.h
 	${PX_SOURCE_DIR}/NpPBDParticleSystem.h
 	${PX_SOURCE_DIR}/NpParticleBuffer.h
-	${PX_SOURCE_DIR}/NpHairSystem.h
 	${PX_SOURCE_DIR}/NpConnector.h
 	${PX_SOURCE_DIR}/NpConstraint.h
 	${PX_SOURCE_DIR}/NpFactory.h
@@ -331,15 +323,17 @@ ADD_LIBRARY(PhysX ${PHYSX_LIBTYPE}
 )
 
 # Add the headers to the install
-INSTALL(FILES ${PHYSX_HEADERS} DESTINATION include)
-INSTALL(FILES ${PHYSX_MATERIAL_HEADERS} DESTINATION include)
-INSTALL(FILES ${PHYSX_COMMON_HEADERS} DESTINATION include/common)
-INSTALL(FILES ${PHYSX_PVD_HEADERS} DESTINATION include/pvd)
-INSTALL(FILES ${PHYSX_OMNIPVD_HEADERS} DESTINATION include/omnipvd)
-INSTALL(FILES ${PHYSX_COLLISION_HEADERS} DESTINATION include/collision)
-INSTALL(FILES ${PHYSX_SOLVER_HEADERS} DESTINATION include/solver)
-# install the custom config file
-INSTALL(FILES ${PHYSX_ROOT_DIR}/include/PxConfig.h DESTINATION include)
+IF(NOT DEFINED PX_ENABLE_INSTALL OR PX_ENABLE_INSTALL)
+	INSTALL(FILES ${PHYSX_HEADERS} DESTINATION include)
+	INSTALL(FILES ${PHYSX_MATERIAL_HEADERS} DESTINATION include)
+	INSTALL(FILES ${PHYSX_COMMON_HEADERS} DESTINATION include/common)
+	INSTALL(FILES ${PHYSX_PVD_HEADERS} DESTINATION include/pvd)
+	INSTALL(FILES ${PHYSX_OMNIPVD_HEADERS} DESTINATION include/omnipvd)
+	INSTALL(FILES ${PHYSX_COLLISION_HEADERS} DESTINATION include/collision)
+	INSTALL(FILES ${PHYSX_SOLVER_HEADERS} DESTINATION include/solver)
+	# install the custom config file
+	INSTALL(FILES ${PHYSX_ROOT_DIR}/include/PxConfig.h DESTINATION include)
+ENDIF()
 
 TARGET_INCLUDE_DIRECTORIES(PhysX
 	PRIVATE ${PHYSX_PLATFORM_INCLUDES}
@@ -350,9 +344,7 @@ TARGET_INCLUDE_DIRECTORIES(PhysX
 	PRIVATE ${PHYSX_SOURCE_DIR}/common/src
 
 	PRIVATE ${PHYSX_SOURCE_DIR}/physx/src
-	PRIVATE ${PHYSX_SOURCE_DIR}/physx/src/device
 	PRIVATE ${PHYSX_SOURCE_DIR}/physxgpu/include
-
 
 	PRIVATE ${PHYSX_SOURCE_DIR}/geomutils/include
 	PRIVATE ${PHYSX_SOURCE_DIR}/geomutils/src
@@ -390,12 +382,16 @@ TARGET_INCLUDE_DIRECTORIES(PhysX
     PRIVATE ${PHYSX_SOURCE_DIR}/pvd/include
 
 	PRIVATE ${PHYSX_SOURCE_DIR}/gpucommon/include
-	PRIVATE ${PHYSX_SOURCE_DIR}/gpucommon/src/DX
 	PRIVATE ${PHYSX_SOURCE_DIR}/gpucommon/src/CUDA
 
-  PRIVATE ${PHYSX_SOURCE_DIR}/omnipvd
-  PRIVATE ${PHYSX_ROOT_DIR}/pvdruntime/include
+	PRIVATE ${PHYSX_SOURCE_DIR}/omnipvd
+	PRIVATE ${PHYSX_ROOT_DIR}/pvdruntime/include
 )
+
+# Conditionally add the internal device directory when not in public release mode
+IF(NOT PUBLIC_RELEASE)
+    TARGET_INCLUDE_DIRECTORIES(PhysX PRIVATE ${PHYSX_SOURCE_DIR}/physx/src/internal/device)
+ENDIF()
 
 TARGET_COMPILE_DEFINITIONS(PhysX
 

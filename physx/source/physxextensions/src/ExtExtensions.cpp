@@ -22,12 +22,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #include "foundation/PxIO.h"
-#include "common/PxMetaData.h"
 #include "common/PxSerializer.h"
 #include "extensions/PxExtensionsAPI.h"
 #include "extensions/PxRepXSerializer.h"
@@ -68,7 +67,7 @@ struct JointConnectionHandler : public PvdClient
 	PvdDataStream*		getDataStream()
 	{
 		return NULL;
-	}	
+	}
 
 	void onPvdConnected()
 	{
@@ -78,7 +77,7 @@ struct JointConnectionHandler : public PvdClient
 			mConnected = true;
 			Ext::Pvd::sendClassDescriptions(*stream);	
 			stream->release();
-		}		
+		}
 	}
 
 	bool isConnected() const
@@ -174,7 +173,7 @@ static void releaseExternalSQ()
 	}
 }
 
-void PxCloseExtensions(void)
+void PxCloseExtensions()
 {
 	releaseExternalSQ();
 
@@ -182,7 +181,7 @@ void PxCloseExtensions(void)
 
 #if PX_SUPPORT_PVD
 	if(gPvdHandler.mConnected)
-	{	
+	{
 		PX_ASSERT(gPvdHandler.mPvd);
 		gPvdHandler.mPvd->removeClient(&gPvdHandler);
 		gPvdHandler.mPvd = NULL;

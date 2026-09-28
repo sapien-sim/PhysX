@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -61,38 +61,38 @@ namespace Sc
 	{
 		PX_FORCE_INLINE OffsetTable() {}
 
-		PX_FORCE_INLINE PxShape*					convertScShape2Px(ShapeCore* sc)						const	{ return PxPointerOffset<PxShape*>(sc, scShape2Px);							}
-		PX_FORCE_INLINE const PxShape*				convertScShape2Px(const ShapeCore* sc)					const	{ return PxPointerOffset<const PxShape*>(sc, scShape2Px);						}
+		PX_FORCE_INLINE PxShape*			convertScShape2Px(ShapeCore* sc)					const	{ return PxPointerOffset<PxShape*>(sc, scShape2Px);					}
+		PX_FORCE_INLINE const PxShape*		convertScShape2Px(const ShapeCore* sc)				const	{ return PxPointerOffset<const PxShape*>(sc, scShape2Px);			}
 
-		PX_FORCE_INLINE PxConstraint*				convertScConstraint2Px(ConstraintCore* sc)				const	{ return PxPointerOffset<PxConstraint*>(sc, scConstraint2Px);					}
-		PX_FORCE_INLINE const PxConstraint*			convertScConstraint2Px(const ConstraintCore* sc)		const	{ return PxPointerOffset<const PxConstraint*>(sc, scConstraint2Px);			}
+		PX_FORCE_INLINE PxConstraint*		convertScConstraint2Px(ConstraintCore* sc)			const	{ return PxPointerOffset<PxConstraint*>(sc, scConstraint2Px);		}
+		PX_FORCE_INLINE const PxConstraint*	convertScConstraint2Px(const ConstraintCore* sc)	const	{ return PxPointerOffset<const PxConstraint*>(sc, scConstraint2Px);	}
 
-		PX_FORCE_INLINE PxArticulationReducedCoordinate*			convertScArticulation2Px(ArticulationCore* sc) const
+		PX_FORCE_INLINE PxArticulationReducedCoordinate* convertScArticulation2Px(ArticulationCore* sc) const
 		{
 			return PxPointerOffset<PxArticulationReducedCoordinate*>(sc, scArticulationRC2Px);
 		}
 
-		PX_FORCE_INLINE const PxArticulationReducedCoordinate*	convertScArticulation2Px(const ArticulationCore* sc)	const
+		PX_FORCE_INLINE const PxArticulationReducedCoordinate* convertScArticulation2Px(const ArticulationCore* sc)	const
 		{
 			return PxPointerOffset<const PxArticulationReducedCoordinate*>(sc, scArticulationRC2Px);
 		}
 
-		PX_FORCE_INLINE PxArticulationJointReducedCoordinate*	convertScArticulationJoint2Px(ArticulationJointCore* sc) const
+		PX_FORCE_INLINE PxArticulationJointReducedCoordinate* convertScArticulationJoint2Px(ArticulationJointCore* sc) const
 		{
 			return PxPointerOffset<PxArticulationJointReducedCoordinate*>(sc, scArticulationJointRC2Px);
 		}
 
 		PX_FORCE_INLINE const PxArticulationJointReducedCoordinate* convertScArticulationJoint2Px(const ArticulationJointCore* sc)	const
-		{		
+		{
 			return PxPointerOffset<const PxArticulationJointReducedCoordinate*>(sc, scArticulationJointRC2Px);
 		}
 
 		ptrdiff_t	scRigidStatic2PxActor;
 		ptrdiff_t 	scRigidDynamic2PxActor;
 		ptrdiff_t 	scArticulationLink2PxActor;
-		ptrdiff_t 	scSoftBody2PxActor;
+		ptrdiff_t 	scDeformableSurface2PxActor;
+		ptrdiff_t 	scDeformableVolume2PxActor;
 		ptrdiff_t 	scPBDParticleSystem2PxActor;
-		ptrdiff_t 	scHairSystem2PxActor;
 		ptrdiff_t 	scShape2Px;
 		ptrdiff_t 	scArticulationRC2Px;
 		ptrdiff_t 	scArticulationJointRC2Px;

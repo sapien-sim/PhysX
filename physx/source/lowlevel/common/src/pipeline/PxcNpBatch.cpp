@@ -22,15 +22,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
-#include "PxcNpCache.h"
-#include "geometry/PxTriangleMesh.h"
-#include "common/PxProfileZone.h"
-
 #include "PxcNpBatch.h"
+#include "PxcNpCache.h"
+#include "common/PxProfileZone.h"
 #include "PxcNpWorkUnit.h"
 #include "PxcContactCache.h"
 #include "PxcNpContactPrepShared.h"
@@ -39,6 +37,8 @@
 #include "PxsMaterialManager.h"
 #include "PxsTransformCache.h"
 #include "PxsContactManagerState.h"
+#include "PxcNpThreadContext.h"
+#include "PxcMaterialMethodImpl.h"
 
 // PT: use this define to enable detailed analysis of the NP functions.
 //#define LOCAL_PROFILE_ZONE(x, y)	PX_PROFILE_ZONE(x, y)
@@ -206,7 +206,7 @@ static bool copyBuffers(PxsContactManagerOutput& cmOutput, Gu::Cache& cache, Pxc
 		if(forceSize)
 			PxMemZero(forceBuffer, forceSize);
 		
-		cmOutput.contactPatches= contactPatches;
+		cmOutput.contactPatches = contactPatches;
 		cmOutput.contactPoints = contactPoints;
 		cmOutput.frictionPatches = frictionPatches;
 		cmOutput.contactForces = forceBuffer;
@@ -288,15 +288,15 @@ static bool finishContacts(const PxcNpWorkUnit& input, PxsContactManagerOutput& 
 		input.mFlags & PxcNpWorkUnitFlag::eOUTPUT_CONTACTS
 		|| (input.mFlags & PxcNpWorkUnitFlag::eFORCE_THRESHOLD);
 
-	if((!isMeshType && !createReports))
+	if(!isMeshType && !createReports)
 		contactForceByteSize = 0;
 
-	bool res = (writeCompressedContact(buffer.contacts, buffer.count, &threadContext, npOutput.nbContacts, npOutput.contactPatches, npOutput.contactPoints, compressedContactSize,
+	const bool res = writeCompressedContact(buffer.contacts, buffer.count, &threadContext, npOutput.nbContacts, npOutput.contactPatches, npOutput.contactPoints, compressedContactSize,
 		reinterpret_cast<PxReal*&>(npOutput.contactForces), contactForceByteSize, 
 		npOutput.frictionPatches, threadContext.mFrictionPatchStreamPool,
 		threadContext.mMaterialManager, ((input.mFlags & PxcNpWorkUnitFlag::eMODIFIABLE_CONTACT) != 0), 
 		false, pMaterials, npOutput.nbPatches, 0, NULL, NULL, threadContext.mCreateAveragePoint, threadContext.mContactStreamPool, 
-		threadContext.mPatchStreamPool, threadContext.mForceAndIndiceStreamPool, isMeshType) != 0);
+		threadContext.mPatchStreamPool, threadContext.mForceAndIndiceStreamPool, isMeshType) != 0;
 
 	//handle buffer overflow
 	if(!npOutput.nbContacts)
@@ -332,8 +332,8 @@ static PX_FORCE_INLINE bool checkContactsMustBeGenerated(PxcNpThreadContext& con
 		const PxU32 body0Dynamic = PxU32(input.mFlags & (PxcNpWorkUnitFlag::eDYNAMIC_BODY0 | PxcNpWorkUnitFlag::eARTICULATION_BODY0 | PxcNpWorkUnitFlag::eSOFT_BODY));
 		const PxU32 body1Dynamic = PxU32(input.mFlags & (PxcNpWorkUnitFlag::eDYNAMIC_BODY1 | PxcNpWorkUnitFlag::eARTICULATION_BODY1 | PxcNpWorkUnitFlag::eSOFT_BODY));
 
-		const PxU32 active0 = PxU32(body0Dynamic && !cachedTransform0->isFrozen());
-		const PxU32 active1 = PxU32(body1Dynamic && !cachedTransform1->isFrozen());
+		const PxU32 active0 = PxU32(body0Dynamic && !cachedTransform0->isFrozenTransform());
+		const PxU32 active1 = PxU32(body1Dynamic && !cachedTransform1->isFrozenTransform());
 
 		if(!(active0 || active1))
 		{
@@ -367,8 +367,8 @@ static PX_FORCE_INLINE bool checkContactsMustBeGenerated(PxcNpThreadContext& con
 template<bool useLegacyCodepath>
 static PX_FORCE_INLINE void discreteNarrowPhase(PxcNpThreadContext& context, const PxcNpWorkUnit& input, Gu::Cache& cache, PxsContactManagerOutput& output, PxU64 contextID)
 {
-	PxGeometryType::Enum type0 = static_cast<PxGeometryType::Enum>(input.mGeomType0);
-	PxGeometryType::Enum type1 = static_cast<PxGeometryType::Enum>(input.mGeomType1);
+	PxGeometryType::Enum type0 = input.getGeomType0();
+	PxGeometryType::Enum type1 = input.getGeomType1();
 
 	const bool flip = (type1<type0);
 
@@ -378,8 +378,8 @@ static PX_FORCE_INLINE void discreteNarrowPhase(PxcNpThreadContext& context, con
 	if(!checkContactsMustBeGenerated<useLegacyCodepath>(context, input, cache, output, cachedTransform0, cachedTransform1, flip, type0, type1))
 		return;
 
-	PxsShapeCore* shape0 = const_cast<PxsShapeCore*>(input.mShapeCore0);
-	PxsShapeCore* shape1 = const_cast<PxsShapeCore*>(input.mShapeCore1);
+	PxsShapeCore* shape0 = const_cast<PxsShapeCore*>(input.getShapeCore0());
+	PxsShapeCore* shape1 = const_cast<PxsShapeCore*>(input.getShapeCore1());
 
 	if(flip)
 	{
@@ -399,13 +399,12 @@ static PX_FORCE_INLINE void discreteNarrowPhase(PxcNpThreadContext& context, con
 		{
 			//We are using a multi-manifold. This is cached in a reduced npCache...
 			isMultiManifold = true;
-			uintptr_t address = uintptr_t(&cache.getMultipleManifold());
-			manifold.fromBuffer(reinterpret_cast<PxU8*>(address));
+			manifold.fromBuffer(cache.mCachedData);
 			cache.setMultiManifold(&manifold);
 		}
 		else if(cache.isManifold())
 		{
-			void* address = reinterpret_cast<void*>(&cache.getManifold());
+			void* address = cache.mCachedData;
 			PxPrefetch(address);
 			PxPrefetch(address, 128);
 			PxPrefetch(address, 256);

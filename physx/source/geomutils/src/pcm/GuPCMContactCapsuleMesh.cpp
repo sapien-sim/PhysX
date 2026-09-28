@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -184,7 +184,7 @@ void Gu::PCMCapsuleVsMeshContactGeneration::generateEE(const Vec3VArg p, const V
 	
 	// if colliding edge (p3,p4) and plane are parallel return no collision
 	const Vec3V pq = V3Sub(q, p);
-	const FloatV npq= V3Dot(n, pq); 
+	const FloatV npq = V3Dot(n, pq); 
 	if(FAllEq(npq, zero))
 		return;
 
@@ -210,7 +210,7 @@ void Gu::PCMCapsuleVsMeshContactGeneration::generateEE(const Vec3VArg p, const V
 	const FloatV sqDist = V3Dot(v, v);
 	
 	if(FAllGrtr(sqInflatedRadius, sqDist))
-	{	
+	{
 		const Vec3V localPointB = V3Sub(localPointA, v);
 		const FloatV signedDist = V3Dot(v, normal);
 	
@@ -254,7 +254,7 @@ void Gu::PCMCapsuleVsMeshContactGeneration::generateEEMTD(	const Vec3VArg p, con
 	
 	// if colliding edge (p3,p4) and plane are parallel return no collision
 	const Vec3V pq = V3Sub(q, p);
-	const FloatV npq= V3Dot(n, pq); 
+	const FloatV npq = V3Dot(n, pq); 
 	if(FAllEq(npq, zero))
 		return;
 
@@ -288,7 +288,7 @@ void Gu::PCMCapsuleVsMeshContactGeneration::generateEEContactsMTD(	const Vec3VAr
 																	PxU32 triangleIndex, const Vec3VArg p, 
 																	const Vec3VArg q, const FloatVArg inflatedRadius,
 																	MeshPersistentContact* manifoldContacts, PxU32& numContacts)
-{	
+{
 	generateEEMTD(p, q, inflatedRadius, normal, triangleIndex, a, b, manifoldContacts, numContacts);
 	generateEEMTD(p, q, inflatedRadius, normal, triangleIndex, b, c, manifoldContacts, numContacts);
 	generateEEMTD(p, q, inflatedRadius, normal, triangleIndex, a, c, manifoldContacts, numContacts);

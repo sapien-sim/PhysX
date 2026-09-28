@@ -22,17 +22,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #include "common/PxProfileZone.h"
-#include "PxvConfig.h"
+#include "foundation/PxFoundation.h"
+#include "PxPhysXConfig.h"
 #include "PxcContactCache.h"
 #include "PxsRigidBody.h"
 #include "PxsContactManager.h"
 #include "PxsContext.h"
-#include "PxPhysXConfig.h"
 
 #include "foundation/PxBitMap.h"
 #include "CmFlushPool.h"
@@ -55,7 +55,7 @@ using namespace physx;
 
 PxsContext::PxsContext(const PxSceneDesc& desc, PxTaskManager* taskManager, Cm::FlushPool& taskPool, PxCudaContextManager* cudaContextManager, PxU32 poolSlabSize, PxU64 contextID) :
 	mNpThreadContextPool			(this),
-	mContactManagerPool				("mContactManagerPool", this, poolSlabSize),
+	mContactManagerPool				("mContactManagerPool", poolSlabSize),
 	mManifoldPool					("mManifoldPool", poolSlabSize),
 	mSphereManifoldPool				("mSphereManifoldPool", poolSlabSize),
 	mContactModifyCallback			(NULL),
@@ -67,6 +67,7 @@ PxsContext::PxsContext(const PxSceneDesc& desc, PxTaskManager* taskManager, Cm::
 	mPCM							(desc.flags & PxSceneFlag::eENABLE_PCM),
 	mContactCache					(false),
 	mCreateAveragePoint				(desc.flags & PxSceneFlag::eENABLE_AVERAGE_POINT),
+	mCCD							(desc.flags & PxSceneFlag::eENABLE_CCD),
 	mContextID						(contextID)
 {
 	clearManagerTouchEvents();
@@ -94,12 +95,12 @@ namespace physx
 			false,				//ePLANE
 			false,				//eCAPSULE
 			false,				//eBOX
+			false,				//eCONVEX
 			true,				//eCONVEXMESH
 			false,				//ePARTICLESYSTEM
 			true,				//eSOFTBODY,
 			true,				//eTRIANGLEMESH
 			true,				//eHEIGHTFIELD
-			false,				//eHAIRSYSTEM
 			true,				//eCUSTOM
 		},
 
@@ -109,12 +110,12 @@ namespace physx
 			false,				//ePLANE
 			true,				//eCAPSULE
 			true,				//eBOX
+			false,				//eCONVEX
 			true,				//eCONVEXMESH
 			false,				//ePARTICLESYSTEM
 			true,				//eSOFTBODY,
 			false,				//eTRIANGLEMESH
 			false,				//eHEIGHTFIELD
-			false,				//eHAIRSYSTEM
 			true,				//eCUSTOM
 		},
 
@@ -124,12 +125,12 @@ namespace physx
 			true,				//ePLANE
 			false,				//eCAPSULE
 			true,				//eBOX
+			false,				//eCONVEX
 			true,				//eCONVEXMESH
 			false,				//ePARTICLESYSTEM
 			true,				//eSOFTBODY,
 			true,				//eTRIANGLEMESH
 			true,				//eHEIGHTFIELD
-			false,				//eHAIRSYSTEM
 			true,				//eCUSTOM
 		},
 
@@ -139,13 +140,28 @@ namespace physx
 			true,				//ePLANE
 			true,				//eCAPSULE
 			true,				//eBOX
+			false,				//eCONVEX
 			true,				//eCONVEXMESH
 			false,				//ePARTICLESYSTEM
 			true,				//eSOFTBODY,
 			true,				//eTRIANGLEMESH
 			true,				//eHEIGHTFIELD
-			false,				//eHAIRSYSTEM
 			true,				//eCUSTOM
+		},
+
+		//eCONVEX,
+		{
+			false,				//eSPHERE
+			false,				//ePLANE
+			false,				//eCAPSULE
+			false,				//eBOX
+			false,				//eCONVEX
+			false,				//eCONVEXMESH
+			false,				//ePARTICLESYSTEM
+			false,				//eSOFTBODY,
+			false,				//eTRIANGLEMESH
+			false,				//eHEIGHTFIELD
+			false,				//eCUSTOM
 		},
 
 		//eCONVEXMESH,
@@ -154,12 +170,12 @@ namespace physx
 			true,				//ePLANE
 			true,				//eCAPSULE
 			true,				//eBOX
+			false,				//eCONVEX
 			true,				//eCONVEXMESH
 			false,				//ePARTICLESYSTEM
 			true,				//eSOFTBODY,
 			true,				//eTRIANGLEMESH
 			true,				//eHEIGHTFIELD
-			false,				//eHAIRSYSTEM
 			true,				//eCUSTOM
 		},
 
@@ -169,12 +185,12 @@ namespace physx
 			false,				//ePLANE
 			false,				//eCAPSULE
 			false,				//eBOX
+			false,				//eCONVEX
 			false,				//eCONVEXMESH
 			false,				//ePARTICLESYSTEM
 			false,				//eSOFTBODY,
 			false,				//eTRIANGLEMESH
 			false,				//eHEIGHTFIELD
-			false,				//eHAIRSYSTEM
 			false,				//eCUSTOM
 		},
 
@@ -184,12 +200,12 @@ namespace physx
 			false,				//ePLANE
 			false,				//eCAPSULE
 			false,				//eBOX
+			false,				//eCONVEX
 			false,				//eCONVEXMESH
 			false,				//ePARTICLESYSTEM
 			false,				//eSOFTBODY,
 			false,				//eTRIANGLEMESH
 			false,				//eHEIGHTFIELD
-			false,				//eHAIRSYSTEM
 			false,				//eCUSTOM
 		},
 
@@ -199,12 +215,12 @@ namespace physx
 			false,				//ePLANE
 			true,				//eCAPSULE
 			true,				//eBOX
+			false,				//eCONVEX
 			true,				//eCONVEXMESH
 			false,				//ePARTICLESYSTEM
 			true,				//eSOFTBODY,
 			false,				//eTRIANGLEMESH
 			false,				//eHEIGHTFIELD
-			false,				//eHAIRSYSTEM
 			true,				//eCUSTOM
 		},
 
@@ -214,28 +230,13 @@ namespace physx
 			false,				//ePLANE
 			true,				//eCAPSULE
 			true,				//eBOX
+			false,				//eCONVEX
 			true,				//eCONVEXMESH
 			false,				//ePARTICLESYSTEM
 			true,				//eSOFTBODY,
 			false,				//eTRIANGLEMESH
 			false,				//eHEIGHTFIELD
-			false,				//eHAIRSYSTEM
 			true,				//eCUSTOM
-		},
-
-		//eHAIRSYSTEM
-		{
-			false,				//eSPHERE
-			false,				//ePLANE
-			false,				//eCAPSULE
-			false,				//eBOX
-			false,				//eCONVEXMESH
-			false,				//ePARTICLESYSTEM
-			false,				//eSOFTBODY,
-			false,				//eTRIANGLEMESH
-			false,				//eHEIGHTFIELD
-			false,				//eHAIRSYSTEM
-			false,				//eCUSTOM
 		},
 
 		//eCUSTOM,
@@ -244,21 +245,21 @@ namespace physx
 			true,				//ePLANE
 			true,				//eCAPSULE
 			true,				//eBOX
+			false,				//eCONVEX
 			true,				//eCONVEXMESH
 			false,				//ePARTICLESYSTEM
 			false,				//eSOFTBODY,
 			true,				//eTRIANGLEMESH
 			true,				//eHEIGHTFIELD
-			false,				//eHAIRSYSTEM
 			true,				//eCUSTOM
 		}
 	};
 	PX_COMPILE_TIME_ASSERT(sizeof(gEnablePCMCaching) / sizeof(gEnablePCMCaching[0]) == PxGeometryType::eGEOMETRY_COUNT);
 }
 
-void PxsContext::createTransformCache(PxVirtualAllocatorCallback& allocatorCallback)
+void PxsContext::createTransformCache(Cm::VirtualAllocatorCallback& allocator, Cm::PinnableAllocatorFallback::Enum fallback)
 {
-	mTransformCache = PX_NEW(PxsTransformCache)(allocatorCallback);
+	mTransformCache = PX_NEW(PxsTransformCache)(allocator, fallback);
 }
 
 PxsContactManager* PxsContext::createContactManager(PxsContactManager* contactManager, bool useCCD)
@@ -314,7 +315,7 @@ void PxsContext::createCache(Gu::Cache& cache, PxGeometryType::Enum geomType0, P
 			//cache.manifold =  0;
 			cache.mCachedData = NULL;
 			cache.mManifoldFlags = 0;
-		}			
+		}
 	}
 }
 
@@ -432,7 +433,7 @@ void PxsContext::mergeCMDiscreteUpdateResults(PxBaseTask* /*continuation*/)
 {
 	PX_PROFILE_ZONE("Sim.narrowPhaseMerge", mContextID);
 
-	this->mNpImplementationContext->appendContactManagers();
+	mNpImplementationContext->appendContactManagers();
 
 	//Note: the iterator extracts all the items and returns them to the cache on destruction(for thread safety).
 	PxcThreadCoherentCacheIterator<PxcNpThreadContext, PxcNpContext> threadContextIt(mNpThreadContextPool);
@@ -481,8 +482,7 @@ void PxsContext::updateContactManager(PxReal dt, bool hasContactDistanceChanged,
 	Cm::FanoutTask* updateBoundAndShapeTask)
 {
 	PX_ASSERT(mNpImplementationContext);
-	return mNpImplementationContext->updateContactManager(dt, hasContactDistanceChanged, continuation, 
-		firstPassContinuation, updateBoundAndShapeTask);
+	mNpImplementationContext->updateContactManager(dt, hasContactDistanceChanged, continuation, firstPassContinuation, updateBoundAndShapeTask);
 }
 
 void PxsContext::secondPassUpdateContactManager(PxReal dt, PxBaseTask* continuation)
@@ -511,71 +511,83 @@ void PxsContext::resetThreadContexts()
 	}
 }
 
-bool PxsContext::getManagerTouchEventCount(int* newTouch, int* lostTouch, int* ccdTouch) const
+bool PxsContext::getManagerTouchEventCount(PxU32* newTouch, PxU32* lostTouch, PxU32* ccdTouch) const
 {
 	if(newTouch)
-		*newTouch = int(mCMTouchEventCount[PXS_NEW_TOUCH_COUNT]);
+		*newTouch = mCMTouchEventCount[PXS_NEW_TOUCH_COUNT];
 
 	if(lostTouch)
-		*lostTouch = int(mCMTouchEventCount[PXS_LOST_TOUCH_COUNT]);
+		*lostTouch = mCMTouchEventCount[PXS_LOST_TOUCH_COUNT];
 
 	if(ccdTouch)
-		*ccdTouch = int(mCMTouchEventCount[PXS_CCD_RETOUCH_COUNT]);
+		*ccdTouch = mCMTouchEventCount[PXS_CCD_RETOUCH_COUNT];
 
 	return true;
 }
 
-bool PxsContext::fillManagerTouchEvents(PxvContactManagerTouchEvent* newTouch, PxI32& newTouchCount, PxvContactManagerTouchEvent* lostTouch, PxI32& lostTouchCount,
-										 PxvContactManagerTouchEvent* ccdTouch, PxI32& ccdTouchCount)
+void PxsContext::fillManagerTouchEvents(PxArray<PxvContactManagerTouchEvent>& newTouchEvents,
+										PxArray<PxvContactManagerTouchEvent>& lostTouchEvents,
+										PxArray<PxvContactManagerTouchEvent>* ccdTouchEvents)
 {
-	const PxvContactManagerTouchEvent* newTouchStart = newTouch;
-	const PxvContactManagerTouchEvent* lostTouchStart = lostTouch;
-	const PxvContactManagerTouchEvent* ccdTouchStart = ccdTouch;
+	PX_PROFILE_ZONE("PxsContext::fillManagerTouchEvents", mContextID);
 
-	const PxvContactManagerTouchEvent* newTouchEnd = newTouch + newTouchCount;
-	const PxvContactManagerTouchEvent* lostTouchEnd = lostTouch + lostTouchCount;
-	const PxvContactManagerTouchEvent* ccdTouchEnd = ccdTouch + ccdTouchCount;
+	// Save initial capacities (set by caller via reserve based on cached counters).
+	// If the bitmap contains more events than the counters indicated, PxArray will
+	// grow dynamically. We detect this after the loop and emit a diagnostic warning.
+	const PxU32 expectedNewCapacity = newTouchEvents.capacity();
+	const PxU32 expectedLostCapacity = lostTouchEvents.capacity();
+	const PxU32 expectedCcdCapacity = ccdTouchEvents ? ccdTouchEvents->capacity() : 0;
 
-	PX_UNUSED(newTouchEnd);
-	PX_UNUSED(lostTouchEnd);
-	PX_UNUSED(ccdTouchEnd);
-	
-	PxU32 index;
-	PxBitMap::Iterator it(mContactManagerTouchEvent);
-
-	while((index = it.getNext()) != PxBitMap::Iterator::DONE)
+	const PxU32* bits = mContactManagerTouchEvent.getWords();
+	if(bits)
 	{
-		PxsContactManager* cm = mContactManagerPool.findByIndexFast(index);
+		// PT: ### bitmap iterator pattern
+		const PxU32 lastSetBit = mContactManagerTouchEvent.findLast();
+		for(PxU32 w = 0; w <= lastSetBit >> 5; ++w)
+		{
+			for(PxU32 b = bits[w]; b; b &= b-1)
+			{
+				const PxU32 index = PxU32(w<<5|PxLowestSetBit(b));
 
-		if(cm->getTouchStatus())
-		{
-			if(!cm->getHasCCDRetouch())
-			{
-				PX_ASSERT(newTouch < newTouchEnd);
-				newTouch->setCMTouchEventUserData(cm->getShapeInteraction());
-				newTouch++;
+				PxsContactManager* cm = mContactManagerPool.findByIndexFast(index);
+
+				PxvContactManagerTouchEvent evt;
+				evt.setCMTouchEventUserData(cm->getShapeInteraction());
+
+				if(cm->getTouchStatus())
+				{
+					if(!cm->getHasCCDRetouch())
+					{
+						newTouchEvents.pushBack(evt);
+					}
+					else
+					{
+						PX_ASSERT(ccdTouchEvents);
+						ccdTouchEvents->pushBack(evt);
+						cm->clearCCDRetouch();
+					}
+				}
+				else
+				{
+					lostTouchEvents.pushBack(evt);
+				}
 			}
-			else
-			{
-				PX_ASSERT(ccdTouch);
-				PX_ASSERT(ccdTouch < ccdTouchEnd);
-				ccdTouch->setCMTouchEventUserData(cm->getShapeInteraction());
-				cm->clearCCDRetouch();
-				ccdTouch++;
-			}
-		}
-		else
-		{
-			PX_ASSERT(lostTouch < lostTouchEnd);
-			lostTouch->setCMTouchEventUserData(cm->getShapeInteraction());
-			lostTouch++;
 		}
 	}
 
-	newTouchCount = PxI32(newTouch - newTouchStart);
-	lostTouchCount = PxI32(lostTouch - lostTouchStart);
-	ccdTouchCount = PxI32(ccdTouch - ccdTouchStart);
-	return true;
+	// Detect counter/bitmap desynchronization. In rare scenarios (e.g. large heightfields on GPU),
+	// the cached touch event counters can undercount the actual bitmap events. The arrays grew
+	// dynamically to handle the overflow, but we emit a warning so the root cause can be investigated.
+	if(newTouchEvents.size() > expectedNewCapacity || lostTouchEvents.size() > expectedLostCapacity
+		|| (ccdTouchEvents && ccdTouchEvents->size() > expectedCcdCapacity))
+	{
+		PxGetFoundation().error(PxErrorCode::eINTERNAL_ERROR, PX_FL,
+			"PxsContext::fillManagerTouchEvents: touch event bitmap contains more events than cached counters indicated "
+			"(new: %u vs %u, lost: %u vs %u, ccd: %u vs %u). Counters may be out of sync.",
+			newTouchEvents.size(), expectedNewCapacity,
+			lostTouchEvents.size(), expectedLostCapacity,
+			ccdTouchEvents ? ccdTouchEvents->size() : 0, expectedCcdCapacity);
+	}
 }
 
 void PxsContext::beginUpdate()

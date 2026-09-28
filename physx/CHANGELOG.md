@@ -1,3 +1,847 @@
+# v5.9.0-110.1
+
+## Supported Platforms
+
+### Runtime
+
+* Linux (tested on Ubuntu LTS versions 22.04, and 24.04 using their respective default GCC and Clang compilers).
+* Microsoft Windows 10 or later (64 bit) 
+* GPU acceleration: display driver supporting CUDA toolkit 12.8 and Volta GPU or above
+
+### Development
+
+* [Linux Platform Readme](documentation/platformreadme/linux/README_LINUX.md)
+* [Windows Platform Readme](documentation/platformreadme/windows/README_WINDOWS.md)
+
+## General
+
+### Added
+
+* PvdDom: reusable OVD DOM parser library, with unit tests in SdkUnitTests.
+
+### Fixed
+
+* Fixed CUDA kernel launch failures in debug builds on Blackwell due to CUDA_ERROR_LAUNCH_OUT_OF_RESOURCES.
+* Ensure that all event handlers are initialized to NULL.
+* A potential fix for https://github.com/NVIDIAGameWorks/PhysX/issues/680 has been added.
+* The implementations of PxAtomicOr and PxAtomicAnd were inconsistent, returning the old values on Windows and the new values on Linux/Switch. The comments have been fixed and the implementations unified, now all returning the old values.
+* Fixed heap buffer overflow in BV32Tree::load when deserializing a malformed cooked triangle mesh: the per-node child count is now validated against the fixed BV32DataPacked array bounds and the load is rejected if out of range.
+* Fixed memory corruption when a PxAggregate without aggregated shapes (e.g. a shapeless articulation) reaches the GPU broadphase. PxgAABBManager now defers broadphase registration until the aggregate has its first shape, matching CPU behavior.
+* Fixed SnippetGyroscopic aborting on exit on Linux when GPU simulation was enabled.
+
+### Changed
+
+* Moved body acceleration computation into the simulation task graph, removing a sync point from fetchResults().
+* CMake minimum version bumped from 3.16 to 3.21 across all platforms, aligning with the removal of Ubuntu 20.04 LTS support.
+* Windows public presets now use `/MD` (dynamic CRT) instead of `/MT` (static CRT) to match CMake defaults and avoid CRT mismatch when consumed via FetchContent alongside other libraries. Users who need static CRT can set `NV_USE_STATIC_WINCRT=ON`.
+
+### Added
+
+* Modern CMake FetchContent integration - PhysX can now be consumed via `FetchContent_Declare()` with zero manual setup. Includes preset system, `physx_lib` interface target, `find_package(PhysX)` support after installation, documentation, and examples.
+* Added `PxTriangleMeshDesc::geomEpsilon` to allow users to override the auto-computed geometry epsilon used for ray-triangle intersection tolerance during cooking.
+
+### Removed
+
+## Rigid Body
+
+### Fixed
+
+* Fixed crash in convex core vs triangle mesh contact generation caused by a buffer overflow in FaceClipper::makePlanes when face points are nearly collinear.
+* Fixed assertion on lostTouchCount in fillManagerTouchEvents() when contact state changes exceed the preallocated buffer in large heightfield scenes on GPU. Touch event buffers now grow dynamically on overflow instead of asserting.
+* A rare jittering case in the PCM code has been fixed.
+* Fixed GPU box-box narrow phase occasionally missing contacts in edge-edge configurations, where the minimum separating axis between the two boxes is an edge-pair rather than a face. Previously, tilted boxes could clip into each other.
+
+## Deformables
+
+### Fixed
+
+* Fixed PxDeformableSurface rigid attachments only correcting X-axis position error when using the PGS solver; Y and Z position errors were silently ignored.
+* Fix PhysX crashes when adding/removing rigid and deformable objects from scene (https://github.com/NVIDIA-Omniverse/PhysX/issues/437). Cloth-cloth contact manager lifetimes are now properly managed: element-level contact buffers and GPU wake/sleep state maps are cleared on cloth removal, ensuring stale data never reaches GPU kernels.
+* Fixed deformable volumes and surfaces failing to collide with other shapes when PxSceneFlag::eDISABLE_SLEEPING is enabled.
+* Fixed potential GPU crash when deformable volumes or deformable surfaces collide with triangle meshes or heightfields.
+* Fixed missing writes to contact GPU buffers for deformable vs triangle mesh and heightfield collisions that could cause degenerate deformation.
+* Fixed a crash in PxScene::addActor() when adding a PxDeformableSurface or PxDeformableVolume without an attached shape.
+* Fixed several correctness issues with deformable-rigid attachments and contacts and how they interact with joint-force readbacks on PxArticulationLink and PxD6Joint:
+  * PxArticulationCache::linkIncomingJointForce and PxD6Joint::getConstraint()->getForce() now report the correct force on rigid bodies / articulation links carrying a deformable load.
+  * Fixed momentum non-conservation when multiple PxDeformableAttachment instances share the same rigid body by applying mass-splitting.
+  * Fixed under-correction when solving attachments between two PxDeformableSurface instances.
+  * Fixed under-correction when solving PxDeformableAttachment with barycentric targets (PxDeformableAttachmentTargetType::eTETRAHEDRON or PxDeformableAttachmentTargetType::eTRIANGLE).
+  * Fixed force under-application when multiple links of the same PxArticulationReducedCoordinate are simultaneously in contact with the same PxDeformableBody.
+
+### Removed
+
+* Removed the deprecated PxSoftBody/PxFEMSoftBody compatibility layer that was introduced in 5.5.
+
+  * PxSoftBody.h, PxSoftBodyFlag.h, PxFEMSoftBodyMaterial.h, PxFEMMaterial.h, extensions/PxSoftBodyExt.h
+  * PxSoftBody, PxSoftBodyFlag, PxSoftBodyFlags, PxSoftBodyDataFlag, PxSoftBodyDataFlags (use PxDeformableVolume equivalents)
+  * PxSoftBodyGpuDataFlag (use PxDeformableVolumeGpuDataFlag)
+  * PxFEMSoftBodyMaterial (use PxDeformableVolumeMaterial)
+  * PxFEMMaterial (use PxDeformableMaterial)
+  * PxFEMMaterialTableIndex (use PxDeformableMaterialTableIndex)
+  * PxSoftBodyMesh, PxSoftBodyAuxData, PxSoftBodyCollisionData, PxSoftBodySimulationData, PxSoftBodySimulationDataDesc (use PxDeformableVolumeMesh equivalents)
+  * PxActorType::eSOFTBODY (use eDEFORMABLE_VOLUME)
+  * PxFilterObjectType::eSOFTBODY (use eDEFORMABLE_VOLUME)
+  * PxConcreteType::eSOFTBODY_MESH, eSOFTBODY_MATERIAL, eSOFT_BODY, eSOFT_BODY_STATE (use deformable volume equivalents)
+  * PX_MAX_NB_SOFTBODY_TET (use PX_MAX_NB_DEFORMABLE_VOLUME_TET)
+  * PxPhysics::createSoftBody(), createSoftBodyMesh(), createFEMSoftBodyMaterial(), getNbFEMSoftBodyMaterials(), getFEMSoftBodyMaterials()
+  * PxScene::getNbSoftBodies(), getSoftBodies(), copySoftBodyData(), applySoftBodyData()
+  * PxShape::setSoftBodyMaterials(), getSoftBodyMaterials()
+  * PxDeformableVolume: setSoftBodyFlag(), getSoftBodyFlag(), addSoftBodyFilter(), removeSoftBodyFilter(), addSoftBodyAttachment(), removeSoftBodyAttachment(), getGpuSoftBodyIndex() and related deprecated methods
+  * PxDeformableVolumeExt: createSoftBody(), createSoftBodyMesh(), relaxSoftBodyMesh() and related deprecated methods
+  * PxCookSoftBodyMesh(), PxCreateSoftBodyMesh(), PxAssembleSoftBodyMesh() and related deprecated functions
+  * PxGpuDynamicsMemoryConfig: maxSoftBodyContacts, maxFemClothContacts (use maxDeformableVolumeContacts, maxDeformableSurfaceContacts)
+  * PxSimulationStatistics: gpuMemSoftBodies, gpuMemHeapSimulationSoftBody, gpuMemHeapSoftBodies (use deformable volume equivalents)
+
+* Removed the deprecated per-actor attachment and filter methods from PxDeformableVolume. Use PxDeformableAttachment and PxDeformableElementFilter instead.
+
+  * PxDeformableVolume: addRigidFilter(), removeRigidFilter(), addRigidAttachment(), removeRigidAttachment()
+  * PxDeformableVolume: addTetRigidFilter(), removeTetRigidFilter(), addTetRigidAttachment()
+  * PxDeformableVolume: addParticleFilter(), removeParticleFilter(), addParticleAttachment(), removeParticleAttachment() (particle-deformable attachments are no longer supported)
+
+* Removed PxConeLimitedConstraint.h and PxConeLimitParams (only used by the deprecated and removed per-actor attachment methods PxDeformableVolume::addRigidAttachment and PxDeformableVolume::addTetRigidAttachment).
+
+* Removed deprecated deformable parameters:
+
+  * PxDeformableVolume::setSolverIterationCounts()/getSolverIterationCounts() overrides (use PxDeformableBody equivalents)
+  * PxDeformableBody::setMaxVelocity()/getMaxVelocity() wrappers (use setMaxLinearVelocity/getMaxLinearVelocity)
+  * PxFEMParameters struct and PxDeformableBody::setParameter()/getParameter() methods, along with PxFEMParameter.h
+  * PxDeformableVolumeFlag::eDISPLAY_SIM_MESH (removed, no replacement)
+  * PxDeformableVolumeFlag::eDISABLE_SELF_COLLISION (use PxDeformableBodyFlag::eDISABLE_SELF_COLLISION)
+  * PxDeformableVolumeFlag::eENABLE_CCD (use PxDeformableBodyFlag::eENABLE_SPECULATIVE_CCD)
+  * PxDeformableVolumeFlag::eKINEMATIC (use PxDeformableBodyFlag::eKINEMATIC)
+  * PxDeformableVolume::setKinematicTargetBufferD(positions, flags) overload (use the single-argument version and set flags separately)
+  * PxDeformableVolumeMaterial::setDamping()/getDamping() (use setElasticityDamping/getElasticityDamping)
+  * PxDeformableVolumeMaterial::setDampingScale()/getDampingScale() (removed entirely, dampingScale is now always 1.0)
+
+## Particles
+
+### Fixed
+
+* Fixed intermittent crash when using GPU particle systems caused by uninitialized memory in the particle system shape constructor.
+
+### Removed
+
+* Removed the deprecated particle cloth feature. Use PxDeformableSurface as a replacement for cloth simulation.
+
+  * PxParticleSpring, PxParticleCloth, PxParticleClothDesc, PxPartitionedParticleCloth, PxParticleClothBuffer, PxParticleClothPreProcessor
+  * extensions/PxParticleClothCooker.h (PxCreateParticleClothCooker and related types)
+  * PxParticleClothBufferHelper, PxCreateParticleClothBufferHelper(), PxCreateAndPopulateParticleClothBuffer(), PxCreateParticleClothPreProcessor()
+  * PxPhysics::createParticleClothBuffer()
+  * PxConcreteType::ePARTICLE_CLOTH_BUFFER
+  * PxParticleBufferFlag::eUPDATE_CLOTH
+  * SnippetPBDCloth and SnippetPBDInflatable samples
+
+* Removed the deprecated particle based rigids feature.
+
+  * PxParticleRigidBuffer, PxParticleRigidBufferHelper, PxParticleRigidDesc
+  * PxCreateParticleRigidBufferHelper(), PxCreateAndPopulateParticleRigidBuffer()
+  * PxPhysics::createParticleRigidBuffer()
+  * PxConcreteType::ePARTICLE_RIGID_BUFFER
+  * PxParticleBufferFlag::eUPDATE_RIGID
+
+* Removed the deprecated particle attachment and filter features.
+
+  * PxParticleRigidAttachment, PxParticleRigidFilterPair
+  * PxParticleAttachmentBuffer, PxCreateParticleAttachmentBuffer()
+  * PxParticleBuffer::setRigidFilters(), PxParticleBuffer::setRigidAttachments()
+  * PxParticleBufferFlag::eUPDATE_ATTACHMENTS
+  * PxPBDParticleSystem: addRigidAttachment(), removeRigidAttachment()
+
+* Removed the deprecated particle volume feature.
+
+  * PxParticleVolume, PxParticleVolumeMesh, PxParticleVolumeBufferHelper, PxCreateParticleVolumeBufferHelper()
+  * PxParticleBuffer::getParticleVolumes(), getNbParticleVolumes(), setNbParticleVolumes(), getMaxParticleVolumes()
+  * PxParticleBufferDesc::volumes, numVolumes, maxVolumes
+  * maxVolumes parameter from PxPhysics::createParticleBuffer() and PxPhysics::createParticleAndDiffuseBuffer()
+
+* Removed other deprecated interfaces:
+
+  * PxScene::applyParticleBufferData() and PxGpuParticleBufferIndexPair struct
+  * PxParticleBuffer::bufferUniqueId field (use getUniqueId() instead)
+  * PxPBDParticleSystem::enableCCD() (use setParticleFlag(PxParticleFlag::eENABLE_SPECULATIVE_CCD, enable) instead)
+  * PxParticleSolverType struct, PxParticleSolverType.h header, and PxParticleSystemGeometry::mSolverType field
+  * PxScene::getNbParticleSystems(PxParticleSolverType::Enum)/getParticleSystems() overloads (use getNbPBDParticleSystems/getPBDParticleSystems)
+
+### Deprecated
+
+* Deprecated PxPBDParticleSystem::setMaxVelocity()/getMaxVelocity() (use setMaxLinearVelocity/getMaxLinearVelocity for consistency with PxDeformableBody and PxRigidBody)
+
+## PVD / OVD
+
+### Fixed
+
+* PxShape::setGeometry() now correctly updates the geometry in the OmniPVD stream.
+
+### Added
+
+* Added OmniPVD deformable streaming: per-frame positions/velocities for volumes and surfaces, native tet mesh topology with collision and simulation meshes as separate objects for volumes.
+* Added OmniPVD deformable material attributes and shape material linking for volume, surface and PBD materials.
+
+## Articulations
+
+### Fixed
+
+* Articulation-related sleeping code was not thread-safe in the CPU simulation, which could lead to a corrupted internal state. This has been fixed.
+* Fixed PxArticulationCache::linkIncomingJointForce potentially under-reporting forces under the TGS solver when PxSceneFlag::eENABLE_EXTERNAL_FORCES_EVERY_ITERATION_TGS is enabled. The joint-force readback could miss the external-force contribution (scene gravity and per-link external forces/accelerations) propagated up the chain from descendant links. Fixed on both CPU and GPU.
+
+## Vehicles
+
+### Fixed
+
+* The de-serialization code in the vehicle snippets did not check for the existence of the TireForceAppPoint parameter in the serialized data.
+
+
+# v5.8.0-110.0
+
+## Supported Platforms
+
+### Runtime
+
+* Linux (tested on Ubuntu LTS versions 22.04, and 24.04 using their respective default GCC and Clang compilers).
+* Microsoft Windows 10 or later (64 bit) 
+* GPU acceleration: display driver supporting CUDA toolkit 12.8 and Volta GPU or above
+
+### Development
+
+* [Linux Platform Readme](documentation/platformreadme/linux/README_LINUX.md)
+* [Windows Platform Readme](documentation/platformreadme/windows/README_WINDOWS.md)
+
+## General
+
+### Fixed
+
+* The GPU pipeline now gracefully handles failures of CUDA pinned-host allocations. Structures that support pageable host memory fall back automatically; structures that require pinned memory fail safely.
+* Replaced unsafe `sprintf` with `snprintf` in VHACD convex decomposition logging to prevent potential buffer overflows.
+
+### Changed
+
+* Setting PxGpuDynamicsMemoryConfig::heapCapacity to zero is now a valid configuration. The initial device and pinned host memory heap capacity 
+
+### Added
+* Added PxPinnedHostAllocatorCallback mainly to test out-of-pinned-host-memory situations.
+* Added PxCudaContextManagerDesc::pinnedHostAllocator, which may be NULL, to pass user allocator when calling PxCreateCudaContextManager.
+* Added PxCudaContext::getDeviceAllocatorCallback() and deprecated PxCudaContext::getAllocatorCallback().
+
+### Removed
+* Removed the deprecated solver residual reporting feature: PxSceneFlag::eENABLE_SOLVER_RESIDUAL_REPORTING, PxScene::getSolverResidual(), PxConstraint::getSolverResidual(), PxArticulationReducedCoordinate::getSolverResidual(), PxResidual, PxResiduals, PxConstraintResidual, PxSceneResidual, PxArticulationResidual 
+* The CUDA pinned host memory containers and associated allocators have been removed from the public headers, refactored and made internal: PxVirtualAllocator, PxVirtualAllocatorCallback, PxPinnedAllocator, PxPinnedArray, PxFloatArrayPinned, PxInt32ArrayPinned, PxInt16ArrayPinned, PxInt8ArrayPinned, PxPinnedArraySafe, PxFloatArrayPinnedSafe, PxInt32ArrayPinnedSafe, PxInt16ArrayPinnedSafe, PxInt8ArrayPinnedSafe, PxBitMapPinned.
+
+## Rigid Body
+
+### Fixed
+
+* The bias coefficient was applied to the strong/sticky friction bias twice on CPU when using the TGS solver (same for rigid contacts involving articulations).
+* Contacts might not have been resolved properly with the TGS solver when restitution was positive and kinematic PxRigidDynamic bodies were involved.
+* Fixed spurious acceleration spikes at velocity discontinuity points (body creation, wake-up, kinematic/dynamic switches, teleports, deserialization).
+
+### Optimized
+
+* Body acceleration computation (PxSceneFlag::eENABLE_BODY_ACCELERATIONS) is now GPU-accelerated when using GPU dynamics.
+* Body acceleration computation for CPU dynamics is now multithreaded via the task system.
+
+## Joints
+
+### Changed
+
+* The bias coefficient for GPU simulation and TGS solver has been slightly adjusted to be consistent with the coefficient used on CPU. Behavior changes might be observed when resolving geometrical joint errors and using less than 5 position iterations.
+
+## Articulations
+
+### Fixed
+
+* Fixed crash in CPU articulation code with small timesteps (below 1e-6).
+
+## Scene Queries
+
+### Fixed
+
+* PxGeometryQuery::raycast() against convex objects could sometimes report an incorrect hit position. This has been fixed.
+
+## PVD / OVD
+
+### Fixed
+
+* Per-axis PxArticulationJointReducedCoordinate::setMaxJointVelocity() now updates the scalar maxJointVelocity OmniPVD attribute.
+* Replaced `strncpy` with `memcpy` in OmniPvdFileReadStreamImpl and OmniPvdFileWriteStreamImpl `setFileName` to clarify intent and avoid `strncpy` null-termination ambiguity.
+
+### Added
+
+* Added PxSceneFlag::eDISABLE_SLEEPING, PxSceneFlag::eENABLE_BODY_ACCELERATIONS, and PxSceneFlag::eENABLE_EXTERNAL_FORCES_EVERY_ITERATION_TGS to OVD enum exports.
+* PxParticleBuffer::setName() now correctly streams the name attribute to OmniPVD.
+* Added meshFlags exports for PxTriangleMeshGeometry, PxConvexMeshGeometry, and PxHeightFieldGeometry to OmniPVD.
+* Renamed OmniPVD attribute minAdvancedCCDCoefficient to minCCDAdvanceCoefficient to match the PxRigidBody API.
+
+# v5.7.0-109.0
+
+## Supported Platforms
+
+### Runtime
+
+* Linux (tested on Ubuntu LTS versions 22.04, and 24.04 using their respective default GCC and Clang compilers).
+* Microsoft Windows 10 or later (64 bit) 
+* GPU acceleration: display driver supporting CUDA toolkit 12.8 and Volta GPU or above
+
+### Development
+
+* [Linux Platform Readme](documentation/platformreadme/linux/README_LINUX.md)
+* [Windows Platform Readme](documentation/platformreadme/windows/README_WINDOWS.md)
+
+## General
+
+### Fixed
+
+* The scalar version of V4ExtractMin and V4ExtractMax have been fixed (https://github.com/NVIDIA-Omniverse/PhysX/issues/346).
+* All places producing Clang's -Winconsistent-missing-override warnings have been fixed (https://github.com/NVIDIA-Omniverse/PhysX/issues/422)
+* A performance issue in convexCoreTrimeshNphase_Kernel32 (https://github.com/NVIDIA-Omniverse/PhysX/pull/464)
+* PxBitMapBase::release() now resets word count to 0.
+* PxBitMapBase::setEmpty() potentially leaked memory. Changed to call PxBitMapBase::release().
+* Fixed OpenGL linker errors when building snippets on modern Linux distributions by using system OpenGL/GLUT libraries.
+* Documented in the Linux platform readme that `nvcc` must be on `PATH` (or `CUDACXX` exported) for CMake configuration to succeed. Previously, a fresh install of CUDA Toolkit 12.8 without `/usr/local/cuda/bin` on `PATH` failed with `No CMAKE_CUDA_COMPILER could be found`.
+
+### Changed
+
+* The broadphases now support empty bounds, which will not trigger errors about "illegal broadphase data" anymore.
+* PxArray and PxBitMapBase changes to improve out-of-memory handling:
+  * PxArray::pushBack(), insert() now return a pointer to the new entry (instead of a reference). It can now return null when running out-of-memory.
+  * PxArray::resize(), resizeUninitialized(), shrink(), reserve(), assign(), grow(), recreate() all now return a bool value to indicate success or failure when running out-of-memory.
+  * PxBitMapBase::growAndSet(), growAndReset(), resizeAndClear(), copy(), combineInPlace(), combine() all return a bool value to indicate success or failure when running out-of-memory.
+  * PxBitMapBase now uses the same allocator inheritance pattern as PxArray. As a consequence it is not possible to construct it directly using PX_NEW.
+* The broadphase error messages are now more explicit, listing which part of the update data was faulty.
+* Update PxDefaultMemoryOutputStream size and capacity parameters to PxU64 from PxU32
+* A new flag PxSceneFlag::eDISABLE_SLEEPING was added, which when set disables sleeping for that scene.
+* PxSceneFlag::eDISABLE_SLEEPING must be raised when using PxSceneFlag::eENABLE_DIRECT_GPU_API. If not set, it will be automatically enabled with a warning.
+* Update binary and xml serialization for 64 bit stream counters
+* Asserts are enabled for CUDA kernels
+
+## Articulations
+
+### Fixed
+
+* Fix uninitialized memory that could lead to crashes or produce incorrect results
+* Joint drives on spherical joints (PxArticulationJointType::eSPHERICAL) might not have reached the correct drive target positions when non identity transforms were used for the joint frames.
+* Joint limits were not properly enforced during velocity iterations. The outcome was a joint velocity that would work harder than required to resolve the limit. This particularly affected the combination of PGS solver and CPU compute.
+* The PGS solver enforces a single velocity iteration when there is contact involving an articulation link and another dynamic object, even when 0 have been requested.  When only contact with articulation links and static objects was present the solver did not enforce a velocity iteration. This has been changed so that a single velocity iteration is always enforced when the PGS solver is employed.  This ensures that the behaviour of articulation link vs static contact is unaffected by the presence of independent dynamic contacts.
+* Breaches of articulation prismatic joint limits were unphysically clamped to the limit without the application of an accompanying impulse. This affected the solver/compute combinations of PGS/CPU, TGS/CPU, TGS/GPU. These unphysical clamps have been removed. 
+* Articulation joint limits and mimic joints treated the very last velocity iteration as a position iteration when PGS/CPU was chosen as the solver/compute combination. This may have led to unnecessarily high values of joint speed when limits were breached or when mimic joints were far from satisfying their target length.
+* Fix out of bounds memory access in direct GPU API kernel, issued for PxArticulationGPUAPIComputeType::eARTICULATION_COMS_WORLD_FRAME and PxArticulationGPUAPIComputeType::eARTICULATION_COMS_ROOT_FRAME.
+
+### Changed
+
+* Sleep-related methods for PxArticulationReducedCoordinate are disabled when PxSceneFlag::eENABLE_DIRECT_GPU_API is enabled.
+
+### Removed
+
+* The deprecated APIs PxArticulationReducedCoordinate::computeGeneralizedMassMatrix, PxArticulationReducedCoordinate::computeCoriolisAndCentrifugalForce and PxArticulationReducedCoordinate::computeGeneralizedGravityForce have been removed. Please use PxArticulationReducedCoordinate::computeMassMatrix, PxArticulationReducedCoordinate::computeCoriolisCompensation and PxArticulationReducedCoordinate::computeGravityCompensation instead.
+* The deprecated enums PxArticulationGPUAPIComputeType::eGENERALIZED_MASS_MATRICES, PxArticulationGPUAPIComputeType::eCORIOLIS_AND_CENTRIFUGAL_FORCES and PxArticulationGPUAPIComputeType::eGENERALIZED_GRAVITY_FORCES have been removed. Please use PxArticulationGPUAPIComputeType::eMASS_MATRICES, PxArticulationGPUAPIComputeType::eCORIOLIS_AND_CENTRIFUGAL_COMPENSATION and PxArticulationGPUAPIComputeType::eGRAVITY_COMPENSATION instead.
+
+## Rigid Body
+
+### Fixed
+
+* Adding the same shape multiple times to the same actor could produce crashes (https://github.com/NVIDIA-Omniverse/PhysX/issues/339). This illegal setup now produces an error in checked builds after PxRigidActor::attachShape() calls.
+* PxSceneFlag::eENABLE_ENHANCED_DETERMINISM was not working for islands with different solver iteration counts. This has been fixed.
+* PxSceneFlag::eENABLE_ENHANCED_DETERMINISM now also works with the TGS solver (CPU).
+* Setting a target velocity via contact modification could behave differently on GPU compared to CPU. The GPU codepath has now been adjusted to better match the CPU behavior.
+
+### Changed
+
+* Sleep-related methods for PxRigidDynamic are disabled when PxSceneFlag::eENABLE_DIRECT_GPU_API is enabled.
+
+## Joints
+
+### Fixed
+
+* Incorrect torques might have been reported when an articulation link was attached to the world through a PxJoint and the TGS solver was used.
+* Joints of type PxD6Joint configured with soft limits did not permit negative impulses to be applied by the joint. This had an impact on the correctness of soft limits by not permitting them to decelerate at the mathematically expected rate.
+* Angular drive targets for the PxD6Joint might not have been reached if the relative rotation between the two joint frames went beyond 90 degrees (with respect to the driven joint axis).
+
+### Removed
+
+* The deprecated APIs PxD6Joint::getTwist(), ::setLinearLimit() and ::getLinearLimit() have been removed. Please use ::getTwistAngle(), ::setDistanceLimit() and ::getDistanceLimit() instead.
+* The deprecated flags PxD6Drive::eSWING and PxD6AngularDriveConfig::eLEGACY have been removed. See the migration guide from PhysX 5.6 for how to adjust legacy setups. Please note that as a consequence drive parameters from old RepX serialization files will most likely not be read correctly anymore and the files have to be regenerated or patched up.
+
+## Vehicles
+
+### Changed
+
+* With the removal of the old deprecated vehicle API and as pointed out in the v5.6.0-107.0 changelog, the following changes have taken place now:
+  * The folder of the public header files has changed from include/vehicle2 to include/vehicle.
+  * The library has been renamed from PhysXVehicle2... to PhysXVehicle...
+  * The namespace vehicle2 has been removed.
+
+## Deformables
+
+### Fixed
+
+* Fix uninitialized memory that could lead to crashes or produce incorrect results
+* Improved numerical robustness of the GPU rotation extraction used by the deformable volume solver.
+* Fixed a spurious debug-build GPU assertion in PxDeformableSurface edge-edge collision for warp lanes that traversed empty BVH leaves.
+
+### Changed
+
+* Snippets for deformable skinning have been updated to use CUDA stream to copy skinning data from host to device.
+* Sleep-related methods for PxDeformableVolume and PxDeformableSurface are disabled when PxSceneFlag::eENABLE_DIRECT_GPU_API is enabled.
+
+## PVD / OVD
+
+### Fixed
+
+* Actor flags set via setActorFlag() are now correctly recorded to the OmniPvd stream.
+
+# v5.6.1-107.3
+
+## General
+
+### Fixed
+
+* PxHashSet would crash after adding ~300 million entries to the set due to internal PxU32 overflows. This has been fixed.
+* The documentation build tool had a regression that made the search not find terms properly.
+* PxContactBuffer's constant MAX_CONTACTS, was decreased from 256 to 255 to fit in an byte sized counter
+
+### Added
+
+* Update NVCC compiler options to generate SASS for Blackwell.
+
+## Articulations
+
+### Deprecated
+
+* Deprecated PxArticulationFlag::eDRIVE_LIMITS_ARE_FORCES. Joint dofs configured to use PxPerformanceEnvelope will already ignore the flag and assume they are configured for forces/torques.
+
+* Deprecated PxSceneFlag::eENABLE_SOLVER_RESIDUAL_REPORTING, PxArticulationReducedCoordinate::getSolverResidual(), PxConstraint::getSolverResidual(), PxScene::getSolverResidual(), PxResidual, PxResiduals, PxArticulationResidual, PxSceneResidual, PxConstraintResidual. 
+
+### Added
+
+* A new motor model for clamping total joint effort (force or torque). The total joint effort is comprised of drive effort and joint effort applied through articulation cache by the user. Please see PxPerformanceEnvelope for clamping details.
+* New direct GPU API getters for PxArticulationGPUAPIReadType::eFIXED_TENDON, PxArticulationGPUAPIReadType::eFIXED_TENDON_JOINT, PxArticulationGPUAPIReadType::eSPATIAL_TENDON, and PxArticulationGPUAPIReadType::eSPATIAL_TENDON_ATTACHMENT.
+* PxArticulationFixedTendon, PxArticulationTendonJoint, PxArticulationSpatialTendon, and PxArticulationAttachment's parameter getters now report errors if called when PxSceneFlag::eENABLE_DIRECT_GPU_API is enabled.
+* A new flag PxSceneFlag::eSOLVE_ARTICULATION_CONTACT_LAST has been added. Raising the flag reorders the solver so that articulation contact is processed after articulation joint drive but before articulation joint max velocity. Raising the flag can help with contact instabilities in gripping scenarios.
+
+### Fixed
+
+* When running on GPU, the link incoming joint force was not being reported correctly in certain scenarios (PxArticulationCacheFlag::eLINK_INCOMING_JOINT_FORCE, PxArticulationGPUAPIReadType::eLINK_INCOMING_JOINT_FORCE).
+* Fixed so that joint velocities are set to zero (along with link angular and linear velocities) when the articulation goes to sleep.
+
+## Joints
+
+### Deprecated
+
+* PxD6Drive::eSWING has been deprecated. Furthermore, the angular joint drive precedence system (PxD6Drive::eSLERP taking precedence over PxD6Drive::eSWING/eTWIST) has been deprecated too. The recommended approach is now to first define the desired angular drive model before setting any drive parameters. The new API PxD6Joint::setAngularDriveConfig() can be used for this purpose. The recommended workflow is as follows:
+  * To use PxD6Drive::eSLERP, first call PxD6Joint::setAngularDriveConfig(PxD6AngularDriveConfig::eSLERP) (PxD6Drive::eSWING/eTWIST/eSWING1/eSWING2 can not be used in this config).
+  * To use PxD6Drive::eTWIST/eSWING1/eSWING2, first call PxD6Joint::setAngularDriveConfig(PxD6AngularDriveConfig::eSWING_TWIST) (PxD6Drive::eSWING/eSLERP can not be used in this config).
+  * PxD6Drive::eSWING should not be used anymore. The configuration of the previous bullet point can be used instead together with setting identical drive parameters for PxD6Drive::eSWING1/eSWING2.
+
+### Added
+
+* PxD6Joint::setAngularDriveConfig() has been added to configure whether angular drives should use the slerp model or twist/swing1/swing2.
+* It is now possible to set different parameters for drives along the swing1 and swing2 axes (see new entries PxD6Drive::eSWING1 and PxD6Drive::eSWING2). Note that it is necessary to configure the D6 joint via PxD6Joint::setAngularDriveConfig(PxD6AngularDriveConfig::eSWING_TWIST) to enable this functionality.
+
+### Fixed
+
+* When running with Direct GPU API enabled (PxSceneFlag::eENABLE_DIRECT_GPU_API), D6 joints were not able to break if the force exceeded the break threshold. The joints do break now but there is a potential performance penalty if the scene has breakable D6 joints.
+
+## Deformable Body
+
+### Fixed
+
+* Deformable Volume collision filter deallocation resulted in memory leaks.
+* Deformable-rigid dynamic friction resolution has received wrong rigid dynamic friction values.
+* Improved interactions between articulations and deformables
+
+## Scene Queries
+
+### Added
+
+* `PxConvexCoreGeometry` is now supported as the query geometry in `sweep()` and `overlap()` scene queries.
+
+## Rigid Body
+
+### Fixed
+
+* A rare crash in PxConvexCoreGeometry contact generation in Gu::FaceClipper::makePlanes() function has been fixed.
+* A bug when PxPhysics::createMaterial() allowed to create materials with invalid restitution values. The accepted values now are [0, 1] for restitution and (-PX_MAX_REAL, 0) if it's the compliant contact stiffness.
+* Pairs of triangle mesh colliders (where both have no SDF) are filtered out from the collision pipeline, avoiding a crash when e.g. kinematic triangle meshes collide.
+* A regression in the GPU geometry code that could cause ghost contacts between a sphere and a triangle mesh has been fixed.
+
+## Pvd
+
+### Changed
+
+* Fixed a bug related to serialization of articulations and mimic joints into the OVD stream.
+
+# v5.6.0-107.0
+
+## Supported Platforms
+
+### Runtime
+
+* Linux (tested on Ubuntu LTS versions 20.04, 22.04, and 24.04 using their respective default GCC and Clang compilers).
+* Microsoft Windows 10 or later (64 bit) 
+* GPU acceleration: display driver supporting CUDA toolkit 12.8 and Volta GPU or above
+
+### Development
+
+* [Linux Platform Readme](documentation/platformreadme/linux/README_LINUX.md)
+* [Windows Platform Readme](documentation/platformreadme/windows/README_WINDOWS.md)
+* Upgrade to CUDA toolkit 12 from CUDA toolkit 11
+
+## General
+
+### Removed
+
+* The deprecated flag Px1DConstraintFlag::eDEPRECATED_DRIVE_ROW has been removed.
+* The deprecated old Direct-GPU API has been removed along with all the types that were used exlusively by that API. This includes the following functions: PxScene::copyBodyData, PxScene::applyActorData, PxScene::copyArticulationData, PxScene::applyArticulationData, PxScene::updateArticulationsKinematic, PxScene::computeDenseJacobians, PxScene::computeGeneralizedMassMatrices, PxScene::computeGeneralizedGravityForces, PxScene::computeCoriolisAndCentrifugalForces, PxScene::copyContactData and PxScene::evaluateSDFDistances. Their replacements are located in PxDirectGPUAPI. PxIndexDataPair, PxActorCacheFlag, PxGpuActorPair, PxGpuBodyData and PxArticulationGpuDataType have been removed.
+* The deprecated flag PxConvexFlag::eGPU_COMPATIBLE has been removed.
+* The deprecated flag PxMaterialFlag::eCOMPLIANT_CONTACT has been removed.
+
+### Deprecated
+
+* Deprecated the PxStridedData and PxTypedStridedData<T>. Use PxBoundedData and PxTypedBoundedData<T> instead. 
+
+### Added
+
+* Added a default implementation of the PxProfilerCallback in PhysXExtensions to record profiling data, called PxDefaultProfiler.
+* Added SnippetProfilerConverter to convert profiler data to a file format that can be viewed in Chrome.
+* The task system now supports high-priority tasks, which are used by the CPU broadphase (PxBroadPhaseType::ePABP). This can sometimes give small performance gains and smoother performance profiles. If not using the default PhysX CPU dispatcher, support for high-priority tasks should be replicated in user-provided CPU dispatchers to take advantage of this change.
+* Added setName/getName functions to PxArticulationJointReducedCoordinate class.
+* The PxGpuBroadPhaseDesc structure has been added, to let users tweak the GPU broadphase data. This is mostly useful when using environment IDs in colocated reinforcement learning cases.
+
+## Rigid Body
+
+### Fixed
+
+* A bug leading to a potential performance issue in the PxBroadPhaseType::ePABP broadphase has been fixed. A pair buffer was constantly resizing each frame for no reason.
+* The GPU broadphase could overflow internal 32bit counters with large colocated environments (reinforcement learning cases). This has been fixed.
+* Switching dynamic/kinematic at runtime when direct GPU API was in use was causing errors and was disabled for that reason in 106.5. The bug was fixed and the feature is enabled again.
+
+### Removed
+
+* The deprecated friction types PxFrictionType::eONE_DIRECTIONAL and ::eTWO_DIRECTIONAL have been removed. Please use PxFrictionType::ePATCH instead (or rather avoid setting the friction type altogether since PxFrictionType::ePATCH is the only supported type left).
+* The deprecated material flag PxMaterialFlag::eIMPROVED_PATCH_FRICTION has been removed and PhysX friction behavior is now always as if this flag had been set.
+* The deprecated kinematic articulation drive modes PxArticulationDriveType::eTARGET and PxArticulationDriveType::eVELOCITY have been removed.
+
+### Deprecated
+
+* The friction type PxFrictionType and the corresponding parameter PxSceneDesc::frictionType have been marked as deprecated. The patch friction model is the only supported type and the option is now obsolete.
+
+## Collision
+
+### Added
+* Collision detection support for PxConvexCoreGeometry-PxDeformableSurface contacts.
+
+## Joints
+
+### Removed
+
+* PxContactJoint and PxJacobianRow were marked as deprecated and have now been removed.
+
+### Added
+
+* PxDirectGPUAPI::getD6JointData() has been added to access the D6 joint forces/torques from GPU memory directly if the direct GPU API is enabled.
+* PxD6Joint::getGPUIndex() has been added to get the indices needed for direct GPU API operations (see bullet point above).
+
+## Articulations
+
+### Added
+
+* A new friction model has been implemented for articulation joints. To utilize this new model please use PxArticulationJointReducedCoordinate::setFrictionParams() to set parameters for joint axes and PxArticulationJointReducedCoordinate::getFrictionParams() to retrieve current parameters.
+* Support of per-axis maxJointVelocity.
+
+### Removed
+
+* The deprecated functions PxArticulationReducedCoordinate::setMaxCOMLinearVelocity(), PxArticulationReducedCoordinate::getMaxCOMLinearVelocity(), PxArticulationReducedCoordinate::setMaxCOMAngularVelocity() and PxArticulationReducedCoordinate::getMaxCOMAngularVelocity() have been removed.
+
+### Fixed
+
+* The maximum joint velocity was not properly enforced when no other internal constraints were present (drive, joint limit, joint friction). This is now fixed.
+
+### Deprecated
+
+* Deprecated PxArticulationJointReducedCoordinate::setFrictionCoefficient() and PxArticulationJointReducedCoordinate::getFrictionCoefficient(). Please use PxArticulationJointReducedCoordinate::setFrictionParams() and PxArticulationJointReducedCoordinate::getFrictionParams() instead. 
+* Deprecated PxArticulationJointReducedCoordinate::setMaxJointVelocity(PxReal maxJointV) and PxArticulationJointReducedCoordinate::getMaxJointVelocity(). Please use PxArticulationJointReducedCoordinate::setMaxJointVelocity(PxArticulationAxis::Enum axis, PxReal maxJointV) and PxArticulationJointReducedCoordinate::getMaxJointVelocity(PxArticulationAxis::Enum axis) instead. 
+
+## Scene queries
+
+### Removed
+
+* The deprecated flag PxHitFlag::eMESH_ANY has been removed. Please use PxHitFlag::eANY_HIT instead.
+
+### Changed
+
+* The specialized PxMeshQuery::findOverlapTriangleMesh function for mesh-vs-mesh overlap has a new API using PxGeomIndexClosePair structures instead of PxGeomIndexPair previously. The previous function has been deprecated. The new function now returns additional distance data when non-zero tolerance values are used.
+
+## Vehicles
+
+### Deprecated
+
+* With the removal of the old deprecated vehicle API (see further below), the following changes will take place in a future version of PhysX:
+  * The folder of the public header files will change from include/vehicle2 to include/vehicle.
+  * The library will be renamed from PhysXVehicle2... to PhysXVehicle...
+  * The namespace vehicle2 will be removed.
+
+### Removed
+
+* The old deprecated vehicle API has been removed. Please use the new vehicle API instead (see the PhysX 4.0 to 5.1 migration guide as well as the vehicle related chapter in the guide). Furthermore, two related PxConstraintExtIDs have been removed (eVEHICLE_SUSP_LIMIT_DEPRECATED and eVEHICLE_STICKY_TYRE_DEPRECATED).
+
+### Changed
+
+* All the vehicle snippets have been renamed from SnippetVehicle2... to SnippetVehicle...
+
+## Deformable Body
+
+### Changed
+
+* Changed PxDeformableBodyFlags from PxU16 to PxU8.
+* Implemented PxActorFlag::eDISABLE_GRAVITY for both PxDeformableSurface and PxDeformableVolume.
+* Deprecated PxDeformableBody::setMaxVelocity, PxDeformableBody::getMaxVelocity
+* Added PxDeformableBody::setMaxLinearVelocity, getMaxLinearVelocity and implemented functionality for PxDeformableVolume
+* Implemented PxDeformableBody::setMaxDepenetrationVelocity, getMaxDepenetrationVelocity (currently limited to deformable-rigid iteractions)
+
+## Serialization
+
+* Binary data conversion and binary meta data have been removed.
+  * PxBinaryConverter
+  * PxConverterReportMode
+  * PxGetPhysicsBinaryMetaData()
+  * PxSerialization::serializeCollectionToBinaryDeterministic()
+  * PxSerialization::dumpBinaryMetaData()
+  * PxSerialization::createBinaryConverter()
+  * PxBinaryMetaDataCallback
+  * PxSerializationRegistry::registerBinaryMetaDataCallback()
+
+# v5.5.1-106.5
+
+## Collision
+
+### Fixed
+
+* A bug when colliding a static rigid body with PxConvexCoreGeometry against PxDeformableVolume led to a crash. 
+* A hanging issue in PxConvexCoreGeometry collision.
+
+## Joints
+
+### Fixed
+
+* When running on GPU, PxConstraint::getForce() might not have returned the correct forces if a scene contained both, joints that did connect to articulation links and joints that did not.
+
+## Pvd
+
+### Changed
+
+* Fixed a potential bug in recording of Direct GPU API set operations followed by a removal of either a rigiddynamic or an articulation.
+
+# v5.5.0-106.4
+
+## Supported Platforms
+
+### Runtime
+
+* Linux (tested on Ubuntu LTS versions 20.04, 22.04, and 24.04 using their respective default GCC and Clang compilers).
+* Microsoft Windows 10 or later (64 bit) 
+* GPU acceleration: display driver supporting CUDA toolkit 11.8 and Volta GPU or above
+
+### Development
+
+* [Linux Platform Readme](documentation/platformreadme/linux/README_LINUX.md)
+* [Windows Platform Readme](documentation/platformreadme/windows/README_WINDOWS.md)
+
+## General
+
+### Added
+
+* cmake files has been updated to require a minimum cmake version of 3.16.
+* Support for environment IDs has been added to actors (PxActor) and aggregates (PxAggregate). These new IDs are used for a built-in filtering mechanism in the GPU broadphase.
+* Added a PX_PROFILE_VALUE macro to display integers and floating point data in the profiler.
+* Added two recordData functions to the PxProfilerCallback that can be implemented to send data to a profiler for plotting.
+* Added a recordFrame function to the PxProfilerCallback that can be implemented to receive frame marker callbacks.
+* Added a new type of geometry - PxConvexCoreGeometry - that can be used to create different, GPU accelerated convex shapes, including cylinders and cones.
+
+### Deprecated
+
+* The single-threaded helper function PxBroadPhase::update(PxBroadPhaseResults& results, const PxBroadPhaseUpdateData& updateData) has been deprecated, replaced with PxBroadPhase::updateAndFetchResults(PxBroadPhaseResults& results, const PxBroadPhaseUpdateData& updateData). This is to avoid confusion between the two overloaded update() functions. A similar change previously happened in the PxAABBManager class.
+* Some functions in PxMathUtils.h (all functions inside the struct Interpolation plus the free function computeBarycentric) are now deprecated and got replaced by free functions in the same file that properly use the Px prefix.
+
+### Removed
+
+* PxHairSystem - a feature under construction - and all associated APIs have been removed
+* PxLineStripSkinning used for skinning graphics meshes to hair systems has been removed
+* CUDA ARCH 6.0 (Pascal GPU) is not supported anymore
+* PxPhysicsGPU::estimateSceneCreationGpuMemoryRequirements has been removed. PxPhysics::createScene() will return a null pointer if scene creation fails due to low GPU memory availability.
+* The file "foundation/Px.h" has been removed. This file contained forward declarations for a subset of classes and structures declared in the PhysX foundation layer. It is recommended to replace any include of "Px.h" with either a forward declaration of the PhysX foundation type required, a #include of the PhysX foundation type required or to include all public headers of PhysX using #include "PxPhysicsAPI.h". The file "foundation/Px.h" also included "stdlib.h" and "string.h" so these might need to be explicitly included as a replacement for "Px.h".
+
+### Changed
+
+* The PxTypedStridedData<T> type no longer holds constant data by default. To maintain full backwards compatibility, use PxTypedStridedData<const YourType>. Previously, the const qualifier on the template argument was not required.
+
+### Fixed
+
+* It was possible that the cpu fallback crashed for contact between a primitive (sphere, plane, box, capsule) and a PxConvexMesh that was not gpu compatible. This will have affected very thin meshes or meshes with 64 or more vertices, 64 or more polygons, 32 or more vertices on any polygon. The crash has been fixed.
+* Compilation warnings treated as errors for Clang 18 and GCC 13.
+
+
+## Rigid Body
+
+### Added
+
+* SDF-based colliders are now also supported on CPU, enabling the use of dynamic triangle mesh actors with CPU dynamics.
+
+### Changed
+
+* Momentum conservation is enforced for rigid body joint and contact constraints.
+
+### Fixed
+
+* Direct GPU API: Velocities were not zeroed when RB was set to kinematic. This was fixed and consistent behavior between cpu, cpu/gpu and direct GPU code paths was ensured.
+* PxConvexCoreGeometry: NaNs in actor's transform could lead to a crash in collision detection code.
+
+## Articulations
+
+### Added
+
+* A function PxArticulationReducedCoordinate::computeArticulationCOM has been added that returns the articulation's center of mass in either the world frame or root frame using its current pose. Similarly, two enums PxArticulationGPUAPIComputeType::eARTICULATION_COMS_WORLD_FRAME and PxArticulationGPUAPIComputeType::eARTICULATION_COMS_ROOT_FRAME have been added that can be used as input to the function PxDirectGPUAPI::computeArticulationData in order to get the articulation's center of mass with the direct GPU API.
+* A function PxArticulationReducedCoordinate::computeCentroidalMomentumMatrix has been added that returns the articulation's centroidal momentum matrix and force bias. Similarly, an enum PxArticulationGPUAPIComputeType::eCENTROIDAL_MOMENTUM_MATRICES has been added that can be used as input to the function PxDirectGPUAPI::computeArticulationData in order to get the articulation's centroidal momentum matrices and force bias with the direct GPU API. These methods are only implemented for floating-base articulations.
+
+### Deprecated
+
+* The inverse dynamics function PxArticulationReducedCoordinate::computeGeneralizedMassMatrix has been deprecated, replaced with PxArticulationReducedCoordinate::computeMassMatrix. Similarly, the enum PxArticulationGPUAPIComputeType::eGENERALIZED_MASS_MATRICES input of the function PxDirectGPUAPI::computeArticulationData has been deprecated, replaced with the enum PxArticulationGPUAPIComputeType::eMASS_MATRICES. The new methods incorporate extra terms in the mass matrix of floating-base articulations in order to allow the user to set both the joint accelerations and the acceleration of the articulation root. For fixed-base articulations, the new methods are identical to the old ones.
+* The inverse dynamics function PxArticulationReducedCoordinate::computeCoriolisAndCentrifugalForce has been deprecated, replaced with PxArticulationReducedCoordinate::computeCoriolisCompensation. Similarly, the enum PxArticulationGPUAPIComputeType::eCORIOLIS_AND_CENTRIFUGAL_FORCES input of the function PxDirectGPUAPI::computeArticulationData has been deprecated, replaced with the enum PxArticulationGPUAPIComputeType::eCORIOLIS_AND_CENTRIFUGAL_COMPENSATION. The new methods incorporate extra terms for floating-base articulations corresponding to the root. This will help the user to set both the joint accelerations and the acceleration of the articulation root when used with the mass matrix and the gravity compensation forces. For fixed-base articulations, the new methods are identical to the old ones.
+* The inverse dynamics function PxArticulationReducedCoordinate::computeGeneralizedGravityForce has been deprecated, replaced with PxArticulationReducedCoordinate::computeGravityCompensation. Similarly, the enum PxArticulationGPUAPIComputeType::eGENERALIZED_GRAVITY_FORCES input of the function PxDirectGPUAPI::computeArticulationData has been deprecated, replaced with the enum PxArticulationGPUAPIComputeType::eGRAVITY_COMPENSATION. The new methods incorporate extra terms for floating-base articulations corresponding to the root. This will help the user to set both the joint accelerations and the acceleration of the articulation root when used with the mass matrix and the Coriolis and Centrifugal compensation forces. For fixed-base articulations, the new methods are identical to the old ones.
+
+### Changed
+
+* Scales used in impulse averaging and propagation steps have been modified for momentum conservation.
+* Joint and contact impulses are propagated immediately after constraint enforcement.
+* Mimic joints now support compliance through two parameters that specify the natural frequency and damping ratio of a mimic joint. The default behaviour is for mimic joints to behave as hard constraints, which matches their historic behavior. A full description of mimic joint compliance is provided in the Mimic Joints section in the User Guide.
+* In the cpu codepath, constraints involving the root link of a fixed-base articulation are now resolved simultaneously with constraints that couple pairs of dynamic rigid bodies and/or articulation links. As a consequence of this change, the cpu and gpu codepaths now resolve constraints and contacts involving the root link of an articulation in the same order. This historic inconsistency, which has now been resolved, may have caused a difference in behavior between CPU and GPU. 
+* When using the Direct GPU API, calling computeArticulationData with the PxArticulationGPUAPIComputeType::eDENSE_JACOBIANS enum was providing the dense Jacobians in the output buffer following the articulation indices, while other inverse dynamics functions provides their outputs following the GPU indices. This is now fixed and the dense Jacobians are now provided following the GPU indices. This may reduce the size of the required buffer.
+
+
+### Fixed
+
+* When using the Direct GPU API, calling computeArticulationData with the PxArticulationGPUAPIComputeType::eCORIOLIS_AND_CENTRIFUGAL_FORCES enum had the undesired consequence to change link accelerations. This is now fixed. Note that the same behavior is still present for floating-base articulations with the deprecated PxArticulationGPUAPIComputeType::eGENERALIZED_GRAVITY_FORCES enum. In that case, users are encouraged to use the new PxArticulationGPUAPIComputeType::eGRAVITY_COMPENSATION enum.
+* On GPU, collision impulses might not have been applied to articulations if the scene contained other articulations with self-collision enabled.
+
+## Joints
+
+### Added
+
+* The flag PxD6JointDriveFlag::eOUTPUT_FORCE has been introduced to include D6 joint drive forces/torques in the force/torque total that gets reported in PxConstraint::getForce().
+
+### Fixed
+
+* When running on GPU, releasing/removing/disabling D6 joints could have potentially caused some other joints to not get simulated for one frame.
+
+## Scene queries
+
+### Fixed
+
+* The mesh-vs-mesh overlap test from PxMeshQuery::findOverlapTriangleMesh() was ignoring the PxMeshMeshQueryFlag::eDISCARD_COPLANAR flag when tolerance was not zero.
+
+## Deformable Body
+
+### Added
+
+* Added PxDeformableSurface feature for simulating e.g. cloth or sheets.
+  * PxDeformableSurface, PxPhysics::createDeformableSurface, PxScene::getNbDeformableSurfaces, PxScene::getDeformableSurfaces.
+  * PxDeformableSurfaceFlag, PxDeformableSurfaceFlags
+  * PxDeformableSurfaceDataFlag, PxDeformableSurfaceDataFlags
+  * PxDeformableSurfaceMaterial, PxPhysics::createDeformableSurfaceMaterial, PxPhysics::getNbDeformableSurfaceMaterials, PxPhysics::getDeformableSurfaceMaterials
+* Added PxDeformableBody base class for deformable features, as well as common flags (PxDeformableBodyFlag, PxDeformableBodyFlags).
+* Added a feature to embed vertices into a deformable body. This helps to deform high resolution visual meshes according to the motion of the deformable body.
+  * PxTriangleMeshEmbeddingInfo, PxTetrahedronMeshEmbeddingInfo, PxTetmeshSkinningGpuData, PxTrimeshSkinningGpuData
+  * PxDeformableSkinningExt::initializeInterpolatedVertices for setting PxTriangleMeshEmbeddingInfo and PxTetrahedronMeshEmbeddingInfo
+  * PxDeformableSkinning::computeNormalVectors, PxDeformableSkinning::evaluateVerticesEmbeddedIntoSurface, evaluateVerticesEmbeddedIntoVolume
+  * PxScene::setDeformableSurfaceGpuPostSolveCallback, PxScene::setDeformableVolumeGpuPostSolveCallback 
+* Contacts between deformable bodies and rigid bodies now take friction value that is a combination of the two materials in contact
+
+### Removed
+* Removed PxDeformableVolumeExt::commit, use PxDeformableVolumeExt::copyToDevice instead.
+
+### Changed
+* Replaced PxFEMMaterialTableIndex with PxDeformableMaterialTableIndex
+
+### Deprecated
+* PxSoftBody types.
+  * PxSoftBody, use PxDeformableVolume instead
+  * PxSoftBodyFlag and PxSoftBodyFlags, use PxDeformableVolumeFlag and PxDeformableVolumeFlags instead
+  * PxSoftBodyDataFlag and PxSoftBodyDataFlags, use PxDeformableVolumeDataFlag and PxDeformableVolumeDataFlags instead
+  * PxFEMSoftBodyMaterial, use PxDeformableVolumeMaterial instead
+  * PxSoftBodyMesh, use PxDeformableVolumeMesh instead
+  * PxSoftBodyAuxData, use PxDeformableVolumeAuxData instead
+* PxFEMMaterial, use PxDeformableMaterial instead.
+* PxFEMParameters, common deformable parameters.
+  * velocityDamping, use PxDeformableBody::setLinearDamping instead
+  * settlingThreshold, use PxDeformableBody::setSettlingThreshold instead
+  * sleepThreshold, use PxDeformableBody::setSleepThreshold instead
+  * sleepDamping, use PxDeformableBody::setSettlingDamping instead
+  * selfCollisionFilterDistance, use PxDeformableBody::setSelfCollisionFilterDistance instead
+  * selfCollisionStressTolerance, use PxDeformableVolume::setSelfCollisionStressTolerance instead
+* PxSoftBodyFlag::eDISABLE_SELF_COLLISION, use PxDeformableBodyFlag::eDISABLE_SELF_COLLISION instead
+* PxSoftBodyFlag::eENABLE_CCD, use PxDeformableBodyFlag::eENABLE_SPECULATIVE_CCD instead
+* PxSoftBodyFlag::eKINEMATIC, use PxDeformableBodyFlag::eKINEMATIC instead
+* PxSoftBody::setKinematicTargetBufferD(const PxVec4* positions, PxDeformableVolumeFlags flags), use setKinematicTargetBufferD(const PxVec4* positions) instead
+* PxSoftBodyExt, use PxDeformableVolumeExt instead.
+* DampingScale (get and set) in PxDeformableMaterial.
+* Damping (get and set) in PxDeformableMaterial, use ElasticityDamping instead.
+
+## Attachments
+
+### Added
+
+* New deformable attachment and element filtering APIs. The new APIs replace the old attachment and filtering APIs which have been deprecated.
+  - PxDeformableAttachment* PxPhysics::createDeformableAttachment()
+  - PxDeformableElementFilter* PxPhysics::createDeformableElementFilter()
+
+### Removed 
+
+* Removed deprecated attachment/filter methods related to PxFEMCloth from PxFEMCloth and PxSoftBody
+
+## Pvd
+
+### Added
+
+* A RECORD_MESSAGE command was added to the Omni PVD API so error messages can be recorded and viewed when debugging. Miscellaneous messaging and tagging can be added now.
+* OVD Direct GPU API (PxDirectGPUAPI) recording for functions setRigidDynamicData and setArticulationData
+  * PxRigidBody has two additional attributes : force and torque
+  * PxArticulationJointReducedCoordinate has an additional attribute : jointForce
+  * Excluded : tendon data
+* Streaming of PxConvexCoreGeometry as well as the following core types
+  * PxConvexCorePoint
+  * PxConvexCoreSegment
+  * PxConvexCoreBox
+  * PxConvexCoreEllipsoid
+  * PxConvexCoreCylinder
+  * PxConvexCoreCone  
+  * Increases the OVD integration version to 1.8
+
+### Changed
+
+* Simulation data is now separated into pre-simulation and post-simulation frame states
+  * The pre-simulation frame state contains all changes on objects before each simulation step starts
+  * The post-simulation frame state constains all changes on objects affected by the simulation step
+  * The OVD integration major.minor versions due to this change are 1.6
+# v5.4.2-106.1
+
+## Articulations
+
+### Fixed
+
+* A bug in the GPU pipeline where setting the maximum joint velocity to zero resulted in a crash.
+
+### Changed
+
+* In the CPU codepath, constraints involving the root link of a fixed-base articulation are now resolved simultaneously with constraints that couple pairs of dynamic rigid bodies and/or articulation links. As a consequence of this change, the CPU and GPU codepaths now resolve constraints and contacts involving the root link of an articulation in the same order. This historic inconsistency, which has now been resolved, may have caused a difference in behavior between CPU and GPU simulation.
+
+## Rigid Body
+
+### Fixed
+
+* In cases where TGS was used with a non-zero number of velocity iterations on CPU, an incorrect timestep was used in part of the rigid-body and articulation solver pipeline.
+* A bug in collision resolution where a sphere could fall through a flat triangle mesh when it landed precisely on a mesh vertex.
+* Acceleration computation for rigid bodies was incorrect for both CPU and GPU APIs if velocities were updated by the user in-between simulation steps. This is fixed now. Affected API: PxRigidBody::getLinearAcceleration(), PxRigidBody::getAngularAcceleration(), PxDirectGPUAPI::getRigidDynamicData().
+* The CPU-side computations of accelerations (controlled with eENABLE_BODY_ACCELERATIONS) have been disabled when eENABLE_DIRECT_GPU_API is enabled. Previously both the CPU and GPU computations happened, which was redundant.
+
+
 # v5.4.1-106.0
 
 ## General
@@ -60,6 +904,7 @@
 * Friction patch information in the PxGpuContactPair structure.
 * A "lightweight abort" mechanism was added to the GPU dynamics pipeline in order to avoid crashing the GPU context in case of insufficient GPU memory. See the guide section about GPU Rigid Bodies for more information.
 * A possibility to query solver residuals (remaining error after position and/or velocity iterations) on the PxScene, PxConstraint and on PxArticulationReducedCoordinate. The scene flag PxSceneFlag::eENABLE_SOLVER_RESIDUAL_REPORTING must be raised to enable residual reporting.
+* Added the ability to select the CUDA device in PxCudaContextManagerDesc. A CUDA device ordinal starts from 0 for the first CUDA capable device and so on. A CUDA device ordinal of -1 will use the CUDA device selected in the Nvidia Control Panel.
 
 ### Changed
 
@@ -85,7 +930,7 @@
 * PxCudaContextManager::allocDeviceBuffer, PxCudaContextManager::freeDeviceBuffer, PxCudaContextManager::allocPinnedHostBuffer, PxCudaContextManager::freePinnedHostBuffer, PxCudaContextManager::clearDeviceBufferAsync, PxCudaContextManager::copyDtoH, PxCudaContextManager::copyHtoD, PxCudaContextManager::copyDToHAsync, PxCudaContextManager::copyHtoDAsync, PxCudaContextManager::copyDtoDAsync, PxCudaContextManager::memsetAsync and the macros using them have been deprecated. The replacement is to either use the direct functions in PxCudaContext, or the helpers provided in PxCudaHelpersExt.h as part of PhysXExtensions.
 * PxPhysicsGPU::estimateSceneCreationGpuMemoryRequirements has been deprecated. PxPhysics::createScene() will return a null pointer if scene creation fails due to low GPU memory availability.
 * Particle-cloth, -rigids, -attachments and -volumes (see Particle section for more details)
-* PxSoftBody, PxFEMCloth and PxHairSystem attachment and filter methods. The functionality will be replaced with a new set of methods on PxScene.
+* PxSoftBody and PxFEMCloth attachment and filter methods. The functionality will be replaced with a new set of methods on PxScene.
 * The single-threaded helper function PxAABBManager::update(PxBroadPhaseResults& results) has been deprecated, replaced with PxAABBManager::updateAndFetchResults(PxBroadPhaseResults& results). This is to avoid confusion between the two overloaded update() functions.
 * PxScene::copyBodyData, PxScene::applyActorData, PxScene::copyArticulationData, PxScene::applyArticulationData, PxScene::updateArticulationsKinematic, PxScene::computeDenseJacobians, PxScene::computeGeneralizedMassMatrices, PxScene::computeGeneralizedGravityForces, PxScene::computeCoriolisAndCentrifugalForces, PxScene::copyContactData and PxScene::evaluateSDFDistances have been deprecated. Their replacements are located in PxDirectGPUAPI.h. Note that the function signatures have been updated to be more consistent, and the data layout of the GPU buffer has been changed. We refer to the API doc and the migration guide for detailed documentation.
 * PxScene::applyParticleBufferData, PxScene::applySoftBodyData and PxScene::copySoftBodyData have been deprecated. There are no direct replacements, because most of the data exposed by these functions is already exposed directly on GPU in the regular PxParticleBuffer and PxSoftbody APIs.
@@ -101,6 +946,7 @@
 * A new mimic joint feature has been added to the sdk. A mimic joint attempts to enforce a linear relationship between the joint positions of two joint dofs of the same articulation instance.  A mimic joint instance is created with the function PxArticulationReducedCoordinate::createMimicJoint() and may be destroyed with the function PxArticulationMimicJoint::release(). Releasing a PxArticulationReducedCoordinate instance will automatically release all mimic joints associated with the articulation. Mimic joints may only be created and released while the owner articulation is not in a PxScene instance. The linear relationship may be edited while the articulation is in a scene but not during the duration of a simulation step.  The snippet SnippetMimicJoint demonstrates the features of a mimic joint.
 * DirectGPUAPIArticulation snippet, showcasing the direct GPU API usage for articulation.
 
+
 ### Fixed
 
 * Root links reported an acceleration that accounted only for acceleration arising from gravity and external forces but did not account for the acceleration arising from contact impulses. This affected only articulations with non-fixed roots when querying link acceleration with PxArticulationReducedCoordinate::getLinkAcceleration() and PxArticulationCache::linkAcceleration.
@@ -112,6 +958,7 @@
 * A force or torque applied to an articulation link after the first simulation step was ignored in the subsequent simulation step; relevant for CPU API and GPU simulation.
 * Some inverse dynamics functions (computeGeneralizedMassMatrix, computeGeneralizedGravityForce, computeDenseJacobian) were not using the most up to date joint positions and velocities when using the Direct GPU API.
 * PxArticulationReducedCoordinate::getLinkAcceleration(linkId) reported an error when linkId was greater than 64.  This limit is no longer a feature of PhysX articulations so the error was false and would have prevented queries of the acceleration of links with id > 64. This has been fixed.
+* The root velocity of an articulation was not reliably propagated to GPU after an update using PxArticulationReducedCoordinate::applyCache() with the autowake argument set true and when the wake counter (see PxArticulationReducedCoordinate::setWakeCounter()) of the articulation was greater than PxPxSceneDesc::wakeCounterResetValue. This has been fixed.
 
 ### Deprecated
 
@@ -225,7 +1072,7 @@
 
 ### Fixed
 
-* A bug in PxGjkQueryExt::ConvexMeshSupport::supportLocal() function. Worked incorrectly with scaled convex meshes. [Issue #202](https://github.com/NVIDIA-Omniverse/PhysX/issues/202)
+* A bug in PxGjkQueryExt::ConvexMeshSupport::supportLocal() function. Worked incorrectly with scaled convex meshes.
 * A bug in PxCustomGeometryExt::BaseConvexCallbacks::raycast() function. Wasn't setting hit flags correctly.
 * A bug in PxSoftBodyExt::createSoftBodyMesh function. Wasn't generating proper voxel meshes.
 

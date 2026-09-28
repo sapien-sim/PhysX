@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -40,13 +40,13 @@ namespace physx
 			case PxCombineMode::eAVERAGE:
 				return 0.5f * (a + b);
 			case PxCombineMode::eMIN:
-				return PxMin(a,b);
+				return PxMin(a, b);
 			case PxCombineMode::eMULTIPLY:
 				return a * b;
 			case PxCombineMode::eMAX:
-				return PxMax(a,b);
+				return PxMax(a, b);
 			default:
-				return PxReal(0);
+				return 0.0f;
 		}   
 	}
 
@@ -82,7 +82,6 @@ namespace physx
 				const PxReal flipSign = (bothCompliant && (combineMode == PxCombineMode::eMULTIPLY)) ? -1.0f : 1.0f;
 				combinedRestitution = flipSign * combineScalars(r0, r1, combineMode);
 			 }
-
 		}
 
 		// combine damping
@@ -117,30 +116,13 @@ namespace physx
 				PxReal dynFriction = 0.0f;
 				PxReal staFriction = 0.0f;
 
-				switch (fictionCombineMode)
-				{
-				case PxCombineMode::eAVERAGE:
-					dynFriction = 0.5f * (mat0Data.dynamicFriction + mat1Data.dynamicFriction);
-					staFriction = 0.5f * (mat0Data.staticFriction + mat1Data.staticFriction);
-					break;
-				case PxCombineMode::eMIN:
-					dynFriction = PxMin(mat0Data.dynamicFriction, mat1Data.dynamicFriction);
-					staFriction = PxMin(mat0Data.staticFriction, mat1Data.staticFriction);
-					break;
-				case PxCombineMode::eMULTIPLY:
-					dynFriction = (mat0Data.dynamicFriction * mat1Data.dynamicFriction);
-					staFriction = (mat0Data.staticFriction * mat1Data.staticFriction);
-					break;
-				case PxCombineMode::eMAX:
-					dynFriction = PxMax(mat0Data.dynamicFriction, mat1Data.dynamicFriction);
-					staFriction = PxMax(mat0Data.staticFriction, mat1Data.staticFriction);
-					break;
-				}   
+				dynFriction = combineScalars(mat0Data.dynamicFriction, mat1Data.dynamicFriction, fictionCombineMode);
+				staFriction = combineScalars(mat0Data.staticFriction, mat1Data.staticFriction, fictionCombineMode);
 
 				//isotropic case
 				const PxReal fDynFriction = PxMax(dynFriction, 0.0f);
 
-#ifdef __CUDACC__
+#if PX_CUDA_COMPILER
 				const PxReal fStaFriction = (staFriction - fDynFriction) >= 0 ? staFriction : fDynFriction;
 #else
 				const PxReal fStaFriction = physx::intrinsics::fsel(staFriction - fDynFriction, staFriction, fDynFriction);
@@ -155,7 +137,6 @@ namespace physx
 				combinedDynamicFriction = 0.0f;
 				combinedStaticFriction = 0.0f;
 			}
-
 		}
 	}
 }

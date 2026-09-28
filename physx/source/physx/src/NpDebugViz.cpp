@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -44,9 +44,7 @@ using namespace physx;
 #include "NpRigidDynamic.h"
 #include "NpArticulationReducedCoordinate.h"
 #if PX_SUPPORT_GPU_PHYSX
-	#include "NpSoftBody.h"
 	#include "NpPBDParticleSystem.h"
-	#include "NpHairSystem.h"
 #endif
 #include "foundation/PxVecMath.h"
 #include "geometry/PxMeshQuery.h"
@@ -57,8 +55,9 @@ using namespace physx;
 #include "GuBounds.h"
 #include "BpBroadPhase.h"
 #include "BpAABBManager.h"
+#include "GuConvexGeometry.h"
 
-using namespace physx::aos;
+using namespace aos;
 using namespace Gu;
 using namespace Cm;
 
@@ -126,6 +125,11 @@ static void visualizeBox(const PxBoxGeometry& geometry, PxRenderOutput& out, con
 	out << gCollisionShapeColor;
 	out << absPose;
 	renderOutputDebugBox(out, PxBounds3(-geometry.halfExtents, geometry.halfExtents));
+}
+
+static void visualizeConvexCore(const PxConvexCoreGeometry& geometry, PxRenderOutput& out, const PxTransform& absPose, const PxBounds3& cullbox)
+{
+	Gu::visualize(geometry, absPose, true, cullbox, out);
 }
 
 static void visualizeConvexMesh(const PxConvexMeshGeometry& geometry, PxRenderOutput& out, const PxTransform& absPose)
@@ -325,6 +329,13 @@ PX_FORCE_INLINE PxU32 makeColor(PxReal v, PxReal invRange0, PxReal invRange1)
 //Returns true if the number of samples chosen to visualize was reduced (to speed up rendering) compared to the total number of sdf samples available
 static bool visualizeSDF(PxRenderOutput& out, const Gu::SDF& sdf, const PxMat34& absPose, bool limitNumberOfVisualizedSamples = false)
 {
+	//### DEFENSIVE coding for OM-122453 and OM-112365
+	if (!sdf.mSdf)
+	{
+		PxGetFoundation().error(::physx::PxErrorCode::eINTERNAL_ERROR, PX_FL, "No distance data available (null pointer) when evaluating an SDF.");
+		return false;
+	}
+
 	bool dataReductionActive = false;
 
 	PxU32 upperByteLimit = 512u * 512u * 512u * sizeof(PxDebugPoint); //2GB - sizeof(PxDebugPoint)=16bytes
@@ -358,6 +369,13 @@ static bool visualizeSDF(PxRenderOutput& out, const Gu::SDF& sdf, const PxMat34&
 		}
 		else
 		{
+			//### DEFENSIVE coding for OM-122453 and OM-112365
+			if (!sdf.mSubgridSdf || !sdf.mSubgridStartSlots)
+			{
+				PxGetFoundation().error(::physx::PxErrorCode::eINTERNAL_ERROR, PX_FL, "No sparse grid data available (null pointer) when evaluating an SDF.");
+				return false;
+			}
+
 			subgridSize = sdf.mSubgridSize;
 			sdfSpacing = subgridSize * sdf.mSpacing;
 			nbX = sdf.mDims.x / subgridSize + 1;
@@ -728,6 +746,10 @@ static void visualize(const PxGeometry& geometry, PxRenderOutput& out, const PxT
 	case PxGeometryType::eCAPSULE:
 		visualizeCapsule(static_cast<const PxCapsuleGeometry&>(geometry), out, absPose);
 		break;
+	case PxGeometryType::eCONVEXCORE:
+		PX_ASSERT(static_cast<const PxConvexCoreGeometry&>(geometry).isValid());
+		visualizeConvexCore(static_cast<const PxConvexCoreGeometry&>(geometry), out, absPose, cullbox);
+		break;
 	case PxGeometryType::eCONVEXMESH:
 		visualizeConvexMesh(static_cast<const PxConvexMeshGeometry&>(geometry), out, absPose);
 		break;
@@ -740,8 +762,6 @@ static void visualize(const PxGeometry& geometry, PxRenderOutput& out, const PxT
 	case PxGeometryType::eTETRAHEDRONMESH:
 	case PxGeometryType::ePARTICLESYSTEM:
 		// A.B. missing visualization code
-		break;
-	case PxGeometryType::eHAIRSYSTEM:
 		break;
 	case PxGeometryType::eCUSTOM:
 		PX_ASSERT(static_cast<const PxCustomGeometry&>(geometry).isValid());
@@ -955,14 +975,14 @@ void NpArticulationLink::visualizeJoint(PxConstraintVisualizer& jointViz) const
 
 		Sc::ArticulationJointCore& joint = impl->getCore();
 
-		if(joint.getMotion(PxArticulationAxis::eTWIST))
+		if(joint.getMotion(PxArticulationAxis::eTWIST) == PxArticulationMotion::eLIMITED)
 		{
 			const PxArticulationLimit pair = joint.getLimit(PxArticulationAxis::Enum(PxArticulationAxis::eTWIST));
 
 			jointViz.visualizeAngularLimit(parentFrame, pair.low, pair.high);
 		}
 
-		if (joint.getMotion(PxArticulationAxis::eSWING1))
+		if (joint.getMotion(PxArticulationAxis::eSWING1) == PxArticulationMotion::eLIMITED)
 		{
 			const PxArticulationLimit pair = joint.getLimit(PxArticulationAxis::Enum(PxArticulationAxis::eSWING1));
 
@@ -972,7 +992,7 @@ void NpArticulationLink::visualizeJoint(PxConstraintVisualizer& jointViz) const
 			jointViz.visualizeAngularLimit(tmp, -pair.high, -pair.low);
 		}
 
-		if (joint.getMotion(PxArticulationAxis::eSWING2))
+		if (joint.getMotion(PxArticulationAxis::eSWING2) == PxArticulationMotion::eLIMITED)
 		{
 			const PxArticulationLimit pair = joint.getLimit(PxArticulationAxis::Enum(PxArticulationAxis::eSWING2));
 
@@ -998,7 +1018,7 @@ void NpArticulationLink::visualizeJoint(PxConstraintVisualizer& jointViz) const
 				jointViz.visualizeLine(p0, p1, active ? 0xff0000u : 0xffffffu);
 			}
 		}
-	}	
+	}
 }
 
 void NpArticulationReducedCoordinate::visualize(PxRenderOutput& out, NpScene& scene, float scale) const
@@ -1098,28 +1118,8 @@ void NpScene::visualize()
 		}
 	}
 
-	// Visualize soft bodies
-	{
-		PxSoftBody*const* softBodies = mSoftBodies.getEntries();
-		const PxU32 softBodyCount = mSoftBodies.size();
+	// TODO Visualize deformable surfaces
 
-		const bool visualize = mScene.getVisualizationParameter(PxVisualizationParameter::eSIMULATION_MESH) != 0.0f;
-		for(PxU32 i=0; i<softBodyCount; i++)
-			softBodies[i]->setSoftBodyFlag(PxSoftBodyFlag::eDISPLAY_SIM_MESH, visualize);		
-	}
-
-	// FEM-cloth
-	// no change
-	// visualize hair systems
-	{
-#if PX_ENABLE_FEATURES_UNDER_CONSTRUCTION
-		const PxHairSystem*const* hairSystems = mHairSystems.getEntries();
-		const PxU32 hairSystemCount = mHairSystems.size();
-		
-		for (PxU32 i = 0; i < hairSystemCount; i++)
-			static_cast<const NpHairSystem*>(hairSystems[i])->visualize(out, *this);
-#endif
-	}
 #endif
 
 #if PX_SUPPORT_PVD

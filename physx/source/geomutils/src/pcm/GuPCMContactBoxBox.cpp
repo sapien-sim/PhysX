@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -340,7 +340,7 @@ static PxU32 doBoxBoxGenerateContacts(const Vec3VArg box0Extent, const Vec3VArg 
 	const FloatV eb2 = V3GetZ(box1Extent);
 
 	const PxMatTransformV transform1To0 = transform0.transformInv(transform1);
-	const Mat33V rot0To1 =M33Trnsps(transform1To0.rot);
+	const Mat33V rot0To1 = M33Trnsps(transform1To0.rot);
 
 	const Vec3V uEps = V3Load(1e-6f); 
 
@@ -929,7 +929,7 @@ bool Gu::pcmContactBoxBox(GU_CONTACT_METHOD_ARGS)
 					manifold.mAIndice, manifold.mBIndice, manifold.mNumWarmStartPoints, output);
 
 				if(status == EPA_CONTACT)
-				{			
+				{
 					const RelativeConvex<BoxV> convexA1(box0, aToB);
 					const LocalConvex<BoxV> convexB1(box1);
 

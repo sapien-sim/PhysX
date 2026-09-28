@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -31,7 +31,7 @@ using namespace physx;
 using namespace Gu;
 
 #include "foundation/PxVecMath.h"
-using namespace physx::aos;
+using namespace aos;
 #include "GuBV4_BoxSweep_Internal.h"
 
 PxIntBool Sweep_AABB_BV4(const Box& localBox, const PxVec3& localDir, float maxDist, const BV4Tree& tree, SweepHit* PX_RESTRICT hit, PxU32 flags);
@@ -130,7 +130,7 @@ void BV4_BoxSweepCB(const Box& box, const PxVec3& dir, float maxDist, const BV4T
 // So the idea here is simply to provide and use a generic function for everything that the BV4 code does not support directly.
 // In particular this should be used:
 // - for convex sweeps (where the OBB is the box around the swept convex)
-// - for non-trivial sphere/capsule/box sweeps where mesh scaling or inflation 
+// - for non-trivial sphere/capsule/box sweeps with mesh scaling or inflation 
 //
 // By design we don't do leaf tests inside the BV4 traversal code here (because we don't support them, e.g. convex
 // sweeps. If we could do them inside the BV4 traversal code, like we do for regular sweeps, then this would not be a generic

@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -65,7 +65,7 @@ namespace Gu {
 
 #define PX_MESH_VERSION 16
 #define PX_TET_MESH_VERSION 1
-#define PX_SOFTBODY_MESH_VERSION 3 // 3: parallel GS + new linear corotated model.
+#define PX_DEFORMABLE_VOLUME_MESH_VERSION 3 // 3: parallel GS + new linear corotated model.
 
 // these flags are used to indicate/validate the contents of a cooked mesh file
 enum InternalMeshSerialFlag
@@ -78,7 +78,7 @@ enum InternalMeshSerialFlag
 	IMSF_GRB_DATA		=	(1<<5),	//!< if set, the cooked mesh file contains GRB data structures
 	IMSF_SDF			=	(1<<6),	//!< if set, the cooked mesh file contains SDF data structures
 	IMSF_VERT_MAPPING	=   (1<<7), //!< if set, the cooked mesh file contains vertex mapping information
-	IMSF_GRB_INV_REMAP	=	(1<<8),	//!< if set, the cooked mesh file contains vertex inv mapping information. Required for cloth
+	IMSF_GRB_INV_REMAP	=	(1<<8),	//!< if set, the cooked mesh file contains vertex inv mapping information. Required for deformable surfaces
 	IMSF_INERTIA		=	(1<<9)	//!< if set, the cooked mesh file contains inertia tensor for the mesh
 };
 
@@ -113,7 +113,7 @@ enum InternalMeshSerialFlag
 		// SDF data
 		SDF						mSdfData;
 
-		//Cloth data : each vert has a list of associated triangles in the mesh, this is for attachement constraints to enable default filtering
+		// Deformable surface data : each vert has a list of associated triangles in the mesh, this is for attachement constraints to enable default filtering
 		PxU32*					mAccumulatedTrianglesRef;//runsum
 		PxU32*					mTrianglesReferences;
 		PxU32					mNbTrianglesReferences;
@@ -279,7 +279,7 @@ enum InternalMeshSerialFlag
 				Gu::BV4Tree		mBV4Tree;
 	};
 
-	// PT: TODO: the following classes should probably be in their own specific files (e.g. GuTetrahedronMeshData.h, GuSoftBodyMeshData.h)
+	// PT: TODO: the following classes should probably be in their own specific files (e.g. GuTetrahedronMeshData.h, GuDeformableVolumeMeshData.h)
 
 	class TetrahedronMeshData : public PxTetrahedronMeshData
 	{
@@ -305,16 +305,6 @@ enum InternalMeshSerialFlag
 			mFlags(0),
 			mGeomEpsilon(0.0f),
 			mAABB(PxBounds3::empty())
-		{}
-
-		TetrahedronMeshData(PxVec3* vertices, PxU32 nbVertices, void* tetrahedrons, PxU32 nbTetrahedrons, PxU8 flags, PxReal geomEpsilon, PxBounds3 aabb) :
-			mNbVertices(nbVertices),
-			mVertices(vertices),
-			mNbTetrahedrons(nbTetrahedrons),
-			mTetrahedrons(tetrahedrons),
-			mFlags(flags),
-			mGeomEpsilon(geomEpsilon),
-			mAABB(aabb)
 		{}
 
 		void allocateTetrahedrons(const PxU32 nbGridTetrahedrons, const PxU32 allocateGPUData = 0)
@@ -353,6 +343,34 @@ enum InternalMeshSerialFlag
 			return (mFlags & PxTriangleMeshFlag::e16_BIT_INDICES) ? true : false;
 		}
 
+		bool checkTetrahedronIndices() const
+		{
+			if (!mTetrahedrons) 
+				return false;
+
+			const PxU32 count = mNbTetrahedrons * 4;
+			if (has16BitIndices())
+			{
+				const PxU16* indices = reinterpret_cast<const PxU16*>(mTetrahedrons);
+				for (PxU32 i = 0; i < count; ++i)
+				{
+					if (indices[i] >= mNbVertices)
+						return false;
+				}
+			}
+			else
+			{
+				const PxU32* indices = reinterpret_cast<const PxU32*>(mTetrahedrons);
+				for (PxU32 i = 0; i < count; ++i)
+				{
+					if (indices[i] >= mNbVertices)
+						return false;
+				}
+			}
+
+			return true;
+		}
+
 		~TetrahedronMeshData()
 		{
 			PX_FREE(mTetrahedrons);
@@ -361,7 +379,7 @@ enum InternalMeshSerialFlag
 		}
 	};
 
-	class SoftBodyCollisionData : public PxSoftBodyCollisionData
+	class DeformableVolumeCollisionData : public PxDeformableVolumeCollisionData
 	{
 	public:
 		PxU32*					mFaceRemap;
@@ -381,7 +399,7 @@ enum InternalMeshSerialFlag
 		PxMat33*				mTetraRestPoses;
 
 
-		SoftBodyCollisionData() : 
+		DeformableVolumeCollisionData() :
 			mFaceRemap(NULL),
 			mGRB_primIndices(NULL),
 			mGRB_faceRemap(NULL),
@@ -391,7 +409,7 @@ enum InternalMeshSerialFlag
 			mTetraRestPoses(NULL)
 		{}
 
-		virtual ~SoftBodyCollisionData()
+		virtual ~DeformableVolumeCollisionData()
 		{
 			PX_FREE(mGRB_tetraSurfaceHint);
 			PX_DELETE(mGRB_BV32Tree);
@@ -469,7 +487,7 @@ enum InternalMeshSerialFlag
 		void allocatemappingData(const PxU32 nbVerts, const PxU32 tetRemapSize, const PxU32 nbColTetrahedrons, const PxU32 allocateGPUData = 0)
 		{
 			if (allocateGPUData)
-			{	
+			{
 				mVertsBarycentricInGridModel = reinterpret_cast<PxReal*>(PX_ALLOC(nbVerts * sizeof(PxReal) * 4, "mVertsBarycentricInGridModel"));
 				mVertsRemapInGridModel = reinterpret_cast<PxU32*>(PX_ALLOC(nbVerts * sizeof(PxU32), "mVertsRemapInGridModel"));
 				mTetsRemapColToSim = reinterpret_cast<PxU32*>(PX_ALLOC(tetRemapSize * sizeof(PxU32), "mTetsRemapInSimModel"));
@@ -492,13 +510,13 @@ enum InternalMeshSerialFlag
 			mCollisionNbTetrahedronsReferences = totalTetReference;
 		}
 
-		virtual void release()
+		virtual void release() PX_OVERRIDE
 		{
 			PX_DELETE_THIS; 
 		}
 	};	
 
-	class SoftBodySimulationData : public PxSoftBodySimulationData
+	class DeformableVolumeSimulationData : public PxDeformableVolumeSimulationData
 	{
 	public:
 		PxReal*					mGridModelInvMass;
@@ -520,7 +538,7 @@ enum InternalMeshSerialFlag
 
 		PxU32					mNumTetsPerElement;
 
-		SoftBodySimulationData() :
+		DeformableVolumeSimulationData() :
 			mGridModelInvMass(NULL),
 			mGridModelTetraRestPoses(NULL),
 			mGridModelNbPartitions(0),
@@ -532,7 +550,7 @@ enum InternalMeshSerialFlag
 			mGMPullIndices(NULL)
 		{}
 
-		virtual ~SoftBodySimulationData()
+		virtual ~DeformableVolumeSimulationData()
 		{
 			PX_FREE(mGridModelInvMass);
 			PX_FREE(mGridModelTetraRestPoses);
@@ -577,12 +595,12 @@ enum InternalMeshSerialFlag
 	{
 	public:
 		TetrahedronMeshData* mMesh;
-		SoftBodyCollisionData* mCollisionData;
+		DeformableVolumeCollisionData* mCollisionData;
 
-		virtual PxTetrahedronMeshData* getMesh() { return mMesh; }
-		virtual const PxTetrahedronMeshData* getMesh() const { return mMesh; }
-		virtual PxSoftBodyCollisionData* getData() { return mCollisionData; }
-		virtual const PxSoftBodyCollisionData* getData() const { return mCollisionData; }
+		virtual PxTetrahedronMeshData* getMesh() PX_OVERRIDE { return mMesh; }
+		virtual const PxTetrahedronMeshData* getMesh() const PX_OVERRIDE { return mMesh; }
+		virtual PxDeformableVolumeCollisionData* getData() PX_OVERRIDE { return mCollisionData; }
+		virtual const PxDeformableVolumeCollisionData* getData() const PX_OVERRIDE { return mCollisionData; }
 
 		virtual ~CollisionTetrahedronMeshData()
 		{
@@ -590,7 +608,7 @@ enum InternalMeshSerialFlag
 			PX_FREE(mCollisionData);
 		}
 
-		virtual void release()
+		virtual void release() PX_OVERRIDE
 		{
 			PX_DELETE_THIS; 
 		}
@@ -600,10 +618,10 @@ enum InternalMeshSerialFlag
 	{
 	public:
 		TetrahedronMeshData* mMesh;
-		SoftBodySimulationData* mSimulationData;
+		DeformableVolumeSimulationData* mSimulationData;
 
-		virtual PxTetrahedronMeshData* getMesh() { return mMesh; }
-		virtual PxSoftBodySimulationData* getData() { return mSimulationData; }
+		virtual PxTetrahedronMeshData* getMesh() PX_OVERRIDE { return mMesh; }
+		virtual PxDeformableVolumeSimulationData* getData() PX_OVERRIDE { return mSimulationData; }
 
 		virtual ~SimulationTetrahedronMeshData()
 		{
@@ -611,24 +629,24 @@ enum InternalMeshSerialFlag
 			PX_FREE(mSimulationData);
 		}
 
-		virtual void release()
+		virtual void release() PX_OVERRIDE
 		{
 			PX_DELETE_THIS; 
 		}
 	};
 
-	class SoftBodyMeshData : public PxUserAllocated
+	class DeformableVolumeMeshData : public PxUserAllocated
 	{
-		PX_NOCOPY(SoftBodyMeshData)
+		PX_NOCOPY(DeformableVolumeMeshData)
 	public:	
 		TetrahedronMeshData& mSimulationMesh;
-		SoftBodySimulationData& mSimulationData;
+		DeformableVolumeSimulationData& mSimulationData;
 		TetrahedronMeshData& mCollisionMesh;
-		SoftBodyCollisionData& mCollisionData;	
+		DeformableVolumeCollisionData& mCollisionData;
 		CollisionMeshMappingData& mMappingData;
 
-		SoftBodyMeshData(TetrahedronMeshData& simulationMesh, SoftBodySimulationData& simulationData, 
-			TetrahedronMeshData& collisionMesh, SoftBodyCollisionData& collisionData, CollisionMeshMappingData& mappingData) :
+		DeformableVolumeMeshData(TetrahedronMeshData& simulationMesh, DeformableVolumeSimulationData& simulationData,
+			TetrahedronMeshData& collisionMesh, DeformableVolumeCollisionData& collisionData, CollisionMeshMappingData& mappingData) :
 			mSimulationMesh(simulationMesh),
 			mSimulationData(simulationData),
 			mCollisionMesh(collisionMesh),

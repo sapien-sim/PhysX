@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -80,12 +80,16 @@ namespace Bp
 
 			PX_FORCE_INLINE bool operator==(const Pair& p) const
 			{
-				return (p.mID0 == mID0) && (p.mID1 == mID1);
+				const PxU64 value0 = *reinterpret_cast<const PxU64*>(this);
+				const PxU64 value1 = *reinterpret_cast<const PxU64*>(&p);
+				return value0 == value1;
 			}
 
 			PX_FORCE_INLINE bool operator!=(const Pair& p) const
 			{
-				return (p.mID0 != mID0) || (p.mID1 != mID1);
+				const PxU64 value0 = *reinterpret_cast<const PxU64*>(this);
+				const PxU64 value1 = *reinterpret_cast<const PxU64*>(&p);
+				return value0 != value1;
 			}
 
 		PxU32	mID0;
@@ -106,11 +110,11 @@ namespace Bp
 		{
 		}
 
-		virtual const char* getName() const { return "PostBroadPhaseStage2Task"; }
+		virtual const char* getName() const PX_OVERRIDE { return "PostBroadPhaseStage2Task"; }
 
 		void setFlushPool(Cm::FlushPool* pool) { mFlushPool = pool; }
 
-		virtual void runInternal();
+		virtual void runInternal() PX_OVERRIDE;
 	};
 
 	class ProcessAggPairsBase;
@@ -127,17 +131,17 @@ namespace Bp
 	{
 													PX_NOCOPY(AABBManager)
 	public:
-														AABBManager(BroadPhase& bp, BoundsArray& boundsArray, PxFloatArrayPinned& contactDistance,
-																	PxU32 maxNbAggregates, PxU32 maxNbShapes, PxVirtualAllocator& allocator, PxU64 contextID,
+														AABBManager(BroadPhase& bp, BoundsArray& boundsArray, Cm::PinnableArray<PxReal>& contactDistance,
+																	PxU32 maxNbAggregates, PxU32 maxNbShapes, Cm::VirtualAllocatorCallback& allocator, PxU64 contextID,
 																	PxPairFilteringMode::Enum kineKineFilteringMode, PxPairFilteringMode::Enum staticKineFilteringMode);
 
 		virtual											~AABBManager() {}
 
 		// AABBManagerBase
 		virtual			void							destroy()	PX_OVERRIDE	PX_FINAL;
-		virtual			AggregateHandle					createAggregate(BoundsIndex index, Bp::FilterGroup::Enum group, void* userData, PxU32 maxNumShapes, PxAggregateFilterHint filterHint)	PX_OVERRIDE	PX_FINAL;
+		virtual			AggregateHandle					createAggregate(BoundsIndex index, Bp::FilterGroup::Enum group, void* userData, PxU32 maxNumShapes, PxAggregateFilterHint filterHint, PxU32 envID)	PX_OVERRIDE	PX_FINAL;
 		virtual			bool							destroyAggregate(BoundsIndex& index, Bp::FilterGroup::Enum& group, AggregateHandle aggregateHandle)	PX_OVERRIDE	PX_FINAL;
-		virtual			bool							addBounds(BoundsIndex index, PxReal contactDistance, Bp::FilterGroup::Enum group, void* userdata, AggregateHandle aggregateHandle, ElementType::Enum volumeType)	PX_OVERRIDE	PX_FINAL;
+		virtual			bool							addBounds(BoundsIndex index, PxReal contactDistance, Bp::FilterGroup::Enum group, void* userdata, AggregateHandle aggregateHandle, ElementType::Enum volumeType, PxU32 envID)	PX_OVERRIDE	PX_FINAL;
 		virtual			bool							removeBounds(BoundsIndex index)	PX_OVERRIDE	PX_FINAL;
 		virtual			void							updateBPFirstPass(PxU32 numCpuTasks, Cm::FlushPool& flushPool, bool hasContactDistanceUpdated, PxBaseTask* continuation)	PX_OVERRIDE	PX_FINAL;
 		virtual			void							updateBPSecondPass(PxcScratchAllocator* scratchAllocator, PxBaseTask* continuation)	PX_OVERRIDE	PX_FINAL;

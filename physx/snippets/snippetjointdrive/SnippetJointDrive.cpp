@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -148,6 +148,7 @@ static void createScene()
 			jointFrame1.q = PxQuat(PxIdentity);
 
 		PxD6Joint* j = PxD6JointCreate(*gPhysics, actor0, jointFrame0, actor1, jointFrame1);
+		j->setAngularDriveConfig(PxD6AngularDriveConfig::eSWING_TWIST);
 		j->setConstraintFlag(PxConstraintFlag::eVISUALIZATION, true);
 
 		// Locked axes would move the joint frames & snap them together. In this test we explicitly want them disjoint,
@@ -173,11 +174,12 @@ static void createScene()
 		}
 		else if(gSceneIndex==2)
 		{
-			j->setDrive(PxD6Drive::eSWING, PxD6JointDrive(0, 1000, FLT_MAX, true));
+			j->setDrive(PxD6Drive::eSWING1, PxD6JointDrive(0, 1000, FLT_MAX, true));
 			j->setDriveVelocity(PxVec3(0.0f), PxVec3(0.0f, 1.0f, 0.0f), true);
 		}
 		else if(gSceneIndex==3)
 		{
+			j->setAngularDriveConfig(PxD6AngularDriveConfig::eSLERP);
 			j->setDrive(PxD6Drive::eSLERP, PxD6JointDrive(0, 1000, FLT_MAX, true));
 			j->setDriveVelocity(PxVec3(0.0f), PxVec3(0.0f, 1.0f, 0.0f), true);
 		}

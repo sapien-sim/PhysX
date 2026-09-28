@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -40,6 +40,14 @@ static PX_FORCE_INLINE void removeRigidActorT(T& rigidActor)
 
 	//Remove constraints (if any constraint is attached to the actor).
 	rigidActor.NpRigidActorTemplate<APIClass>::removeConstraints(rigidActor);
+
+#if PX_SUPPORT_GPU_PHYSX
+	//Remove attachments (if any attachment is attached to the actor).
+	rigidActor.NpRigidActorTemplate<APIClass>::removeAttachments(rigidActor, true);
+
+	//Remove element filters (if any element filter is attached to the actor).
+	rigidActor.NpRigidActorTemplate<APIClass>::removeElementFilters(rigidActor, true);
+#endif
 
 	//Remove from aggregate (if it is in an aggregate).
 	rigidActor.NpActorTemplate<APIClass>::removeFromAggregate(rigidActor);

@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -37,8 +37,6 @@
 #include "CmRadixSort.h"
 #include "CmUtils.h"
 
-using namespace physx::aos;
-
 //#define CHECK_NB_OVERLAPS
 #define USE_FULLY_INSIDE_FLAG
 //#define MBP_USE_NO_CMP_OVERLAP_3D	// Seems slower
@@ -47,6 +45,7 @@ using namespace physx::aos;
 #define HWSCAN
 
 using namespace physx;
+using namespace aos;
 using namespace Bp;
 using namespace Cm;
 
@@ -364,9 +363,6 @@ static PX_FORCE_INLINE void clearBit(BitArray& bitmap, MBP_ObjectIndex objectInd
 		void		allocateSleeping(PxU32 nbSleeping, PxU32 nbSentinels);
 		void		allocateUpdated(PxU32 nbUpdated, PxU32 nbSentinels);
 
-		// PT: wtf, why doesn't the 128 version compile?
-//		MBP_AABB	PX_ALIGN(128, mSleepingDynamicBoxes_Stack[STACK_BUFFER_SIZE]);
-//		MBP_AABB	PX_ALIGN(128, mUpdatedDynamicBoxes_Stack[STACK_BUFFER_SIZE]);
 		MBP_AABB	PX_ALIGN(16, mSleepingDynamicBoxes_Stack[STACK_BUFFER_SIZE]);
 		MBP_AABB	PX_ALIGN(16, mUpdatedDynamicBoxes_Stack[STACK_BUFFER_SIZE]);
 		MBP_Index	mInToOut_Dynamic_Sleeping_Stack[STACK_BUFFER_SIZE];
@@ -2235,9 +2231,11 @@ PX_FORCE_INLINE RegionHandle* MBP::getHandles(MBP_Object& currentObject, PxU32 n
 		handles = &currentObject.mHandle;
 	else
 	{
+		if(!nbHandles)
+			return NULL;
 		const PxU32 handlesIndex = currentObject.mHandlesIndex;
 		PxArray<PxU32>& c = mHandles[nbHandles];
-		handles = reinterpret_cast<RegionHandle*>(c.begin()+handlesIndex);
+		handles = reinterpret_cast<RegionHandle*>(c.begin() + handlesIndex);
 	}
 	return handles;
 }
@@ -3037,11 +3035,8 @@ bool BroadPhaseMBP::removeRegion(PxU32 handle)
 	return mMBP->removeRegion(handle);
 }
 
-void BroadPhaseMBP::update(PxcScratchAllocator* scratchAllocator, const BroadPhaseUpdateData& updateData, physx::PxBaseTask* /*continuation*/)
+void BroadPhaseMBP::update(PxcScratchAllocator* /*scratchAllocator*/, const BroadPhaseUpdateData& updateData, physx::PxBaseTask* /*continuation*/)
 {
-	PX_CHECK_AND_RETURN(scratchAllocator, "BroadPhaseMBP::update - scratchAllocator must be non-NULL \n");
-	PX_UNUSED(scratchAllocator);
-
 	setUpdateData(updateData);
 
 	update();
@@ -3188,11 +3183,8 @@ void BroadPhaseMBP::setUpdateData(const BroadPhaseUpdateData& updateData)
 
 #if PX_CHECKED
 	// PT: WARNING: this must be done after the allocateMappingArray call
-	if(!BroadPhaseUpdateData::isValid(updateData, *this, false, mContextID))
-	{
-		PX_CHECK_MSG(false, "Illegal BroadPhaseUpdateData \n");
+	if(updateData.isValid(mContextID, this) != BroadPhaseUpdateError::eNO_ERROR)
 		return;
-	}
 #endif
 
 	mGroups = updateData.getGroups();
@@ -3281,7 +3273,7 @@ void BroadPhaseMBP::freeBuffers()
 }
 
 #if PX_CHECKED
-bool BroadPhaseMBP::isValid(const BroadPhaseUpdateData& updateData) const
+BroadPhaseUpdateError::Enum BroadPhaseMBP::isValid(const BroadPhaseUpdateData& updateData) const
 {
 	const BpHandle* created = updateData.getCreatedHandles();
 	if(created)
@@ -3303,7 +3295,7 @@ bool BroadPhaseMBP::isValid(const BroadPhaseUpdateData& updateData) const
 			PX_ASSERT(index<mCapacity);
 
 			if(set.contains(index))
-				return false;	// This object has been added already
+				return BroadPhaseUpdateError::eALREADY_ADDED;	// This object has been added already
 		}
 	}
 
@@ -3317,7 +3309,7 @@ bool BroadPhaseMBP::isValid(const BroadPhaseUpdateData& updateData) const
 			PX_ASSERT(index<mCapacity);
 
 			if(mMapping[index]==PX_INVALID_U32)
-				return false;	// This object has been removed already, or never been added
+				return BroadPhaseUpdateError::eNOT_IN_DATABASE;	// This object has been removed already, or never been added
 		}
 	}
 
@@ -3331,10 +3323,10 @@ bool BroadPhaseMBP::isValid(const BroadPhaseUpdateData& updateData) const
 			PX_ASSERT(index<mCapacity);
 
 			if(mMapping[index]==PX_INVALID_U32)
-				return false;	// This object has been removed already, or never been added
+				return BroadPhaseUpdateError::eALREADY_REMOVED;	// This object has been removed already, or never been added
 		}
 	}
-	return true;
+	return BroadPhaseUpdateError::eNO_ERROR;
 }
 #endif
 

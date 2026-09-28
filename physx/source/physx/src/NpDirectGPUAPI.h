@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -32,6 +32,10 @@
 #include "PxDirectGPUAPI.h"
 #include "foundation/PxUserAllocated.h"
 
+#if PX_SUPPORT_OMNI_PVD
+#include "omnipvd/NpOmniPvdSimulationControllerCallbacks.h"
+#endif
+
 namespace physx
 {
 
@@ -39,7 +43,6 @@ class NpScene;
 
 class NpDirectGPUAPI : public PxDirectGPUAPI, public PxUserAllocated
 {
-
 public:
 	NpDirectGPUAPI(NpScene& scene);
 	virtual ~NpDirectGPUAPI() { }
@@ -56,9 +59,14 @@ public:
 	virtual bool evaluateSDFDistances(PxVec4* localGradientAndSDFConcatenated, const PxShapeGPUIndex* shapeIndices, const PxVec4* localSamplePointsConcatenated, const PxU32* samplePointCountPerShape, PxU32 nbElements, PxU32 maxPointCount, CUevent startEvent = NULL, CUevent finishEvent = NULL) const PX_OVERRIDE PX_FINAL;
 
 	virtual PxArticulationGPUAPIMaxCounts getArticulationGPUAPIMaxCounts()	const	PX_OVERRIDE PX_FINAL;
+
+	virtual bool getD6JointData(void* data, const PxD6JointGPUIndex* gpuIndices, PxD6JointGPUAPIReadType::Enum dataType, PxU32 nbElements, CUevent startEvent = NULL, CUevent finishEvent = NULL) const PX_OVERRIDE PX_FINAL;
 	//~PxDirectGPUAPI
 
 	NpScene& mNpScene;
+#if PX_SUPPORT_OMNI_PVD
+	NpOmniPvdSimulationControllerCallbacks mOvdCallback;
+#endif
 };
 
 }

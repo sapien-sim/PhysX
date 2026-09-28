@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -286,7 +286,15 @@ struct GeomQueryAny
 					retVal = PxU32(func(geom1, pose1Offset, static_cast<const PxBoxGeometry&>(geom0), pose0, sd->getGuBox(), unitDir, distance, sweepHit, hitFlags, inflation, context));
 				}
 				break;
-	
+
+				case PxGeometryType::eCONVEXCORE:
+				{
+					const PxConvexCoreGeometry& convexGeom = static_cast<const PxConvexCoreGeometry&>(geom0);
+					const SweepConvexCoreFunc func = sf.convexCoreMap[geom1.getType()];
+					retVal = PxU32(func(geom1, pose1Offset, convexGeom, pose0, unitDir, distance, sweepHit, hitFlags, inflation, context));
+				}
+				break;
+
 				case PxGeometryType::eCONVEXMESH:
 				{
 					const PxConvexMeshGeometry& convexGeom = static_cast<const PxConvexMeshGeometry&>(geom0);
@@ -294,6 +302,7 @@ struct GeomQueryAny
 					retVal = PxU32(func(geom1, pose1Offset, convexGeom, pose0, unitDir, distance, sweepHit, hitFlags, inflation, context));
 				}
 				break;
+
 				default:
 					outputError<physx::PxErrorCode::eINVALID_PARAMETER>(__LINE__, "PxScene::sweep(): first geometry object parameter must be sphere, capsule, box or convex geometry.");
 				break;
@@ -411,7 +420,7 @@ struct MultiQueryCallback : public PrunerRaycastCallback, public PrunerOverlapCa
 			mFilterData			(filterData),
 			mFilterCall			(filterCall),
 			mShrunkDistance		(shrunkDistance),
-			mMeshAnyHitFlags	((hitFlags.isSet(PxHitFlag::eMESH_ANY) || anyHit) ? PxHitFlag::eMESH_ANY : PxHitFlag::Enum(0)),
+			mMeshAnyHitFlags	((hitFlags.isSet(PxHitFlag::eANY_HIT) || anyHit) ? PxHitFlag::eANY_HIT : PxHitFlag::Enum(0)),
 			mReportTouchesAgain	(true),
 			mFarBlockFound		(filterData.flags & PxQueryFlag::eNO_BLOCK),
 			mNoBlock			(filterData.flags & PxQueryFlag::eNO_BLOCK),
@@ -677,7 +686,7 @@ struct CapturePvdOnReturn : public PxHitCallback<HitType>
 		mParentCallback			(parentCallback)
 	{}
 
-	virtual PxAgain processTouches(const HitType* hits, PxU32 nbHits)
+	virtual PxAgain processTouches(const HitType* hits, PxU32 nbHits) PX_OVERRIDE
 	{
 		const PxAgain again = mParentCallback.processTouches(hits, nbHits);
 		for(PxU32 i=0; i<nbHits; i++)

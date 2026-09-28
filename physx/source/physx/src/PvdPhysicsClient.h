@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.
 
@@ -51,22 +51,22 @@ class PvdPhysicsClient : public PvdClient, public PxErrorCallback, public NpFact
 	PvdPhysicsClient(PsPvd* pvd);
 	virtual ~PvdPhysicsClient();
 
-	bool isConnected() const;
-	void onPvdConnected();
-	void onPvdDisconnected();
-	void flush();
+	virtual	bool isConnected() const	PX_OVERRIDE;
+	virtual	void onPvdConnected()	PX_OVERRIDE;
+	virtual	void onPvdDisconnected()	PX_OVERRIDE;
+	virtual	void flush()	PX_OVERRIDE;
 
-	physx::pvdsdk::PvdDataStream* getDataStream();
+	virtual	physx::pvdsdk::PvdDataStream* getDataStream()	PX_OVERRIDE;
 	
 	void sendEntireSDK();	
 	void destroyPvdInstance(const PxPhysics* physics);
 
 	// NpFactoryListener
-	virtual void onMeshFactoryBufferRelease(const PxBase* object, PxType typeID);
+	virtual void onMeshFactoryBufferRelease(const PxBase* object, PxType typeID) PX_OVERRIDE;
 	/// NpFactoryListener
 
 	// PxErrorCallback
-	void reportError(PxErrorCode::Enum code, const char* message, const char* file, int line);
+	virtual	void reportError(PxErrorCode::Enum code, const char* message, const char* file, int line)	PX_OVERRIDE;
 
   private:
 	void createPvdInstance(const PxTriangleMesh* triMesh);
@@ -80,18 +80,19 @@ class PvdPhysicsClient : public PvdClient, public PxErrorCallback, public NpFact
 	void createPvdInstance(const PxMaterial* mat);
 	void destroyPvdInstance(const PxMaterial* mat);
 	void updatePvdProperties(const PxMaterial* mat);
+#if PX_SUPPORT_GPU_PHYSX
+	void createPvdInstance(const PxDeformableSurfaceMaterial* mat);
+	void destroyPvdInstance(const PxDeformableSurfaceMaterial* mat);
+	void updatePvdProperties(const PxDeformableSurfaceMaterial* mat);
 
-	void createPvdInstance(const PxFEMSoftBodyMaterial* mat);
-	void destroyPvdInstance(const PxFEMSoftBodyMaterial* mat);
-	void updatePvdProperties(const PxFEMSoftBodyMaterial* mat);
-
-	void createPvdInstance(const PxFEMClothMaterial* mat);
-	void destroyPvdInstance(const PxFEMClothMaterial* mat);
-	void updatePvdProperties(const PxFEMClothMaterial* mat);
+	void createPvdInstance(const PxDeformableVolumeMaterial* mat);
+	void destroyPvdInstance(const PxDeformableVolumeMaterial* mat);
+	void updatePvdProperties(const PxDeformableVolumeMaterial* mat);
 
 	void createPvdInstance(const PxPBDMaterial* mat);
 	void destroyPvdInstance(const PxPBDMaterial* mat);
 	void updatePvdProperties(const PxPBDMaterial* mat);
+#endif
 
 	PsPvd*  mPvd;
 	PvdDataStream* mPvdDataStream;

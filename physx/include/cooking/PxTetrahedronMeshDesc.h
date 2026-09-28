@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -66,7 +66,7 @@ namespace physx
 		When a tetrahedron mesh collides with another object, a material is required at the collision point.
 		If materialIndices is NULL, then the material of the PxShape instance is used.
 		Otherwise, if the point of contact is on a tetrahedron with index i, then the material index is determined as:
-		PxFEMMaterialTableIndex	index = *(PxFEMMaterialTableIndex *)(((PxU8*)materialIndices) + materialIndexStride * i);
+		PxDeformableMaterialTableIndex	index = *(PxDeformableMaterialTableIndex *)(((PxU8*)materialIndices) + materialIndexStride * i);
 
 		If the contact point falls on a vertex or an edge, a tetrahedron adjacent to the vertex or edge is selected, and its index
 		used to look up a material. The selection is arbitrary but consistent over time.
@@ -75,7 +75,7 @@ namespace physx
 
 		\see materialIndexStride
 		*/
-		PxTypedStridedData<PxFEMMaterialTableIndex> materialIndices;
+		PxTypedBoundedData<PxDeformableMaterialTableIndex> materialIndices;
 
 		/**
 		\brief Pointer to first vertex point.
@@ -163,7 +163,7 @@ namespace physx
 				return false;		
 
 			//add more validity checks here
-			if (materialIndices.data && materialIndices.stride < sizeof(PxFEMMaterialTableIndex))
+			if (materialIndices.data && materialIndices.stride < sizeof(PxDeformableMaterialTableIndex))
 				return false;
 
 			// The tetrahedrons pointer is not mandatory
@@ -183,12 +183,12 @@ namespace physx
 		}
 	};
 
-	///**
-	//\brief Descriptor class for #PxSoftBodyMesh (contains only additional data used for softbody simulation).
+	/**
+	\brief Descriptor class for #PxDeformableVolumeMesh (contains only additional data used for deformable volume simulation).
 
-	//\see PxSoftBodyMesh PxShape
-	//*/
-	class PxSoftBodySimulationDataDesc
+	\see PxDeformableVolumeMesh PxShape
+	*/
+	class PxDeformableVolumeSimulationDataDesc
 	{
 	public:
 		/**
@@ -200,7 +200,7 @@ namespace physx
 		/**
 		\brief Constructor to build an empty simulation description
 		*/
-		PxSoftBodySimulationDataDesc()
+		PxDeformableVolumeSimulationDataDesc()
 		{
 			vertexToTet.count = 0;
 			vertexToTet.stride = 0;
@@ -210,7 +210,7 @@ namespace physx
 		/**
 		\brief Constructor to build a simulation description with a defined vertex to tetrahedron mapping
 		*/
-		PxSoftBodySimulationDataDesc(physx::PxArray<physx::PxI32>& vertToTet)
+		PxDeformableVolumeSimulationDataDesc(physx::PxArray<physx::PxI32>& vertToTet)
 		{
 			vertexToTet.count = vertToTet.size();
 			vertexToTet.stride = sizeof(PxI32);
@@ -218,10 +218,11 @@ namespace physx
 		}
 
 		PX_INLINE bool isValid() const
-		{			
+		{
 			return true;
 		}
 	};
+
 	
 #if !PX_DOXYGEN
 } // namespace physx

@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -45,7 +45,7 @@
 		{																												\
 			NpScene* sceneForPVD = RigidActorTemplateClass::getNpScene();	/* shared shapes also return zero here */	\
 			if(sceneForPVD)																								\
-				sceneForPVD->getScenePvdClientInternal().updateBodyPvdProperties(static_cast<NpActor*>(this));				\
+				sceneForPVD->getScenePvdClientInternal().updateBodyPvdProperties(static_cast<NpActor*>(this));			\
 		}
 #else
 	#define UPDATE_PVD_PROPERTY_BODY
@@ -53,6 +53,8 @@
 
 namespace physx
 {
+	class NpArticulationLink;
+
 PX_INLINE PxVec3 invertDiagInertia(const PxVec3& m)
 {
 	return PxVec3(	m.x == 0.0f ? 0.0f : 1.0f/m.x,
@@ -90,7 +92,7 @@ public:
 	// The rule is: If an API method is used somewhere in here, it has to be redeclared, else GCC whines
 
 	// PxRigidActor
-	virtual			PxTransform			getGlobalPose() const = 0;
+	virtual			PxTransform			getGlobalPose() const PX_OVERRIDE = 0;
 	virtual			bool				attachShape(PxShape& shape)	PX_OVERRIDE;
 	//~PxRigidActor
 
@@ -313,7 +315,8 @@ public:
 	PX_INLINE	PxMat33					scGetGlobalInertiaTensorInverse() const
 										{
 											PxMat33 inverseInertiaWorldSpace;
-											Cm::transformInertiaTensor(mCore.getInverseInertia(), PxMat33Padded(mCore.getBody2World().q), inverseInertiaWorldSpace);
+											const PxVec3p invInertia = mCore.getInverseInertia();
+											Cm::transformInertiaTensor(invInertia, mCore.getBody2World().q, inverseInertiaWorldSpace);
 											return inverseInertiaWorldSpace;
 										}
 
@@ -715,9 +718,27 @@ PX_FORCE_INLINE void NpRigidBodyTemplate<APIClass>::setRigidBodyFlagsInternal(co
 	}
 
 	scSetFlags(filteredNewFlags);
-
+#if PX_SUPPORT_OMNI_PVD
 	OMNI_PVD_SET(OMNI_PVD_CONTEXT_HANDLE, PxRigidBody, rigidBodyFlags, static_cast<PxRigidBody&>(*this), filteredNewFlags)
-
+	// Check also that the scene is DirectGPU API driven scene
+	if(scene)
+	{
+		const PxSceneFlags sFlags = scene->getFlags();
+		if ( (currentFlags & PxRigidBodyFlag::eRETAIN_ACCELERATIONS) && !(filteredNewFlags & PxRigidBodyFlag::eRETAIN_ACCELERATIONS) && (sFlags & PxSceneFlag::eENABLE_DIRECT_GPU_API) )
+		{
+			// Add the articulation link's articulation or rigidDynamic body to the potential candidates of the force/torque nullification in the fetchResults zeroForce call
+			PxActorType::Enum aType = this->getType();
+			if (aType == PxActorType::eARTICULATION_LINK)
+			{
+				scene->getSceneOvdClientInternal().addArticulationFromLinkFlagChangeReset(reinterpret_cast<PxArticulationLink*>(this));
+			}
+			else if (aType==PxActorType::eRIGID_DYNAMIC)
+			{
+				scene->getSceneOvdClientInternal().addRigidDynamicReset(reinterpret_cast<PxRigidDynamic*>(this));
+			}
+		}
+	}
+#endif
 	// PT: the SQ update should be done after the scSetFlags() call
 	if(mustUpdateSQ)
 		this->getShapeManager().markActorForSQUpdate(scene->getSQAPI(), *this);
@@ -731,10 +752,13 @@ void NpRigidBodyTemplate<APIClass>::setRigidBodyFlag(PxRigidBodyFlag::Enum flag,
 
 	PX_CHECK_SCENE_API_WRITE_FORBIDDEN(npScene, "PxRigidBody::setRigidBodyFlag() not allowed while simulation is running. Call will be ignored.")
 
+	NP_CHECK_SCENE_CORRUPTION_AND_RETURN(npScene)
+
 	const PxRigidBodyFlags currentFlags = mCore.getFlags();
 	const PxRigidBodyFlags newFlags = value ? currentFlags | flag : currentFlags & (~PxRigidBodyFlags(flag));
 
 	setRigidBodyFlagsInternal(currentFlags, newFlags);
+	NP_CHECK_SCENE_CUDA_ABORT_AND_SET_CORRUPTION(npScene)
 }
 
 template<class APIClass>
@@ -745,9 +769,12 @@ void NpRigidBodyTemplate<APIClass>::setRigidBodyFlags(PxRigidBodyFlags inFlags)
 
 	PX_CHECK_SCENE_API_WRITE_FORBIDDEN(npScene, "PxRigidBody::setRigidBodyFlags() not allowed while simulation is running. Call will be ignored.")
 
+	NP_CHECK_SCENE_CORRUPTION_AND_RETURN(npScene)
+
 	const PxRigidBodyFlags currentFlags = mCore.getFlags();
 
 	setRigidBodyFlagsInternal(currentFlags, inFlags);
+	NP_CHECK_SCENE_CUDA_ABORT_AND_SET_CORRUPTION(npScene)
 }
 
 template<class APIClass>
@@ -760,8 +787,7 @@ void NpRigidBodyTemplate<APIClass>::setMinCCDAdvanceCoefficient(PxReal minCCDAdv
 
 	mCore.setCCDAdvanceCoefficient(minCCDAdvanceCoefficient);
 	UPDATE_PVD_PROPERTY_BODY
-	OMNI_PVD_SET(OMNI_PVD_CONTEXT_HANDLE, PxRigidBody, minAdvancedCCDCoefficient, static_cast<PxRigidBody&>(*this), minCCDAdvanceCoefficient)
-
+	OMNI_PVD_SET(OMNI_PVD_CONTEXT_HANDLE, PxRigidBody, minCCDAdvanceCoefficient, static_cast<PxRigidBody&>(*this), minCCDAdvanceCoefficient)
 }
 
 template<class APIClass>

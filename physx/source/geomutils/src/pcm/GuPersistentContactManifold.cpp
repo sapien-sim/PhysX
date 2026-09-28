@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -219,7 +219,7 @@ static void drawManifoldPoint(const PersistentContact& manifold, const PxTransfo
 	const PxVec3 right2(size2, 0.f, 0.f);
 	const PxVec3 forwards2(0.f, 0.f, size2);
 	
-	const PxMat44 m = PxMat44(PxIdentity);
+	const PxMat44 m(PxIdentity);
 	
 	out << m << PxRenderOutput::LINES;
 
@@ -266,7 +266,7 @@ static void drawManifoldPoint(const PersistentContact& manifold, const PxTransfo
 	const PxVec3 right2(size2, 0.f, 0.f);
 	const PxVec3 forwards2(0.f, 0.f, size2);
 	
-	PxMat44 m = PxMat44(PxIdentity);
+	const PxMat44 m(PxIdentity);
 	
 	out << 0xffff00ff << m << PxRenderOutput::LINES  << a << e;
 	out << 0xff00ffff << m << PxRenderOutput::LINES << a + up << a - up;
@@ -394,7 +394,7 @@ void PersistentContactManifold::drawManifold(PxRenderOutput& out, const PxTransf
 }
 
 void PersistentContactManifold::drawManifold(const PersistentContact& m, PxRenderOutput& out, const PxTransformV& trA, const PxTransformV& trB) const
-{	
+{
 #if VISUALIZE_PERSISTENT_CONTACT
 	drawManifoldPoint(m, trA, trB, out, gColors[0]);
 #else
@@ -681,7 +681,7 @@ PxU32 PersistentContactManifold::reduceContactsForPCM(const Vec3VArg localPointA
 			const FloatV sqDif = distancePointTriangleSquaredLocal(	tempContacts[i].mLocalPointB, mContactPoints[0].mLocalPointB, mContactPoints[1].mLocalPointB, mContactPoints[2].mLocalPointB); 
 			if(FAllGrtr(sqDif, maxDist))
 			{
-				maxDist= sqDif;
+				maxDist = sqDif;
 				index = i;
 			}
 		}
@@ -1240,7 +1240,7 @@ void PersistentContactManifold::reduceBatchContacts2(const PersistentContact* ma
 	if(secondIndex != index)
 	{
 		mContactPoints[1] = manifoldPoints[secondIndex];
-	}	
+	}
 }
 
 PxU32 PersistentContactManifold::addManifoldPoint(const Vec3VArg localPointA, const Vec3VArg localPointB, const Vec4VArg localNormalPen, const FloatVArg replaceBreakingThreshold)
@@ -1868,7 +1868,7 @@ FloatV SinglePersistentContactManifold::refreshContactPoints(const PxMatTransfor
 		const Vec3V v = V3Sub(localAInB, localBInB); 
 
 		const Vec3V localNormal = Vec3V_From_Vec4V(manifoldPoint.mLocalNormalPen); // normal in b space
-		const FloatV dist= V3Dot(v, localNormal);
+		const FloatV dist = V3Dot(v, localNormal);
 
 		const Vec3V projectedPoint = V3NegScaleSub(localNormal, dist, localAInB);//manifoldPoint.worldPointA - manifoldPoint.worldPointB * manifoldPoint.m_distance1;
 		const Vec3V projectedDifference = V3Sub(localBInB, projectedPoint);
@@ -1925,7 +1925,7 @@ void MultiplePersistentContactManifold::drawLine(PxRenderOutput& out, const Vec3
 	V3StoreU(p0, a);
 	V3StoreU(p1, b);
 
-	PxMat44 m = PxMat44(PxIdentity);
+	const PxMat44 m(PxIdentity);
 	out << color << m << PxRenderOutput::LINES << a << b;
 #else
 	PX_UNUSED(out);
@@ -1938,7 +1938,7 @@ void MultiplePersistentContactManifold::drawLine(PxRenderOutput& out, const Vec3
 void MultiplePersistentContactManifold::drawLine(PxRenderOutput& out, const PxVec3 p0, const PxVec3 p1, PxU32 color)
 {
 #if VISUALIZE_PERSISTENT_CONTACT
-	PxMat44 m = PxMat44(PxIdentity);
+	const PxMat44 m(PxIdentity);
 	out << color << m << PxRenderOutput::LINES << p0 << p1;
 #else
 	PX_UNUSED(out);
@@ -1958,7 +1958,7 @@ void MultiplePersistentContactManifold::drawPoint(PxRenderOutput& out, const Vec
 	PxVec3 a;
 	V3StoreU(p, a);
 
-	PxMat44 m = PxMat44(PxIdentity);
+	const PxMat44 m(PxIdentity);
 	
 	out << color << m << PxRenderOutput::LINES << a + up << a - up;
 	out << color << m << PxRenderOutput::LINES << a + right << a - right;
@@ -2094,7 +2094,7 @@ void MultiplePersistentContactManifold::addManifoldContactPoints(MeshPersistentC
 						const FloatV _maxPen = addBatchManifoldContactsToSingleManifold(manifold, manifoldContact, numManifoldContacts, patch, sqReplaceBreakingThreshold, maxContactsPerManifold);
 						FStore(_maxPen, &mMaxPen[mManifoldIndices[mNumManifolds]]);
 						mNumManifolds++;
-					}	
+					}
 					else
 					{
 						//we can't allocate a new manifold  and no existing manifold has the same normal as this patch, we need to find the shallowest penetration manifold. If this manifold is shallower than
@@ -2144,7 +2144,7 @@ bool MultiplePersistentContactManifold::addManifoldContactsToContactBuffer(PxCon
 		{
 			const MeshPersistentContact& p = manifold.getContactPoint(j);
 			
-			const Vec3V worldP =meshTransform.transform(p.mLocalPointB);
+			const Vec3V worldP = meshTransform.transform(p.mLocalPointB);
 			const FloatV dist = V4GetW(p.mLocalNormalPen);
 			
 			outputPCMContact(contactBuffer, contactCount, worldP, normal, dist, p.mFaceIndex);
@@ -2263,7 +2263,7 @@ void MultiplePersistentContactManifold::toBuffer(PxU8* PX_RESTRICT buffer) const
 		CachedMeshPersistentContact* contacts = reinterpret_cast<CachedMeshPersistentContact*>(buff);
 		//convert the mesh persistent contact to cached mesh persistent contact to save 16 byte memory per contact
 		for(PxU32 b = 0; b<manifold.mNumContacts; ++b)
-		{	
+		{
 			V4StoreA(Vec4V_From_Vec3V(manifold.mContactPoints[b].mLocalPointA), &contacts[b].mLocalPointA.x);
 			V4StoreA(Vec4V_From_Vec3V(manifold.mContactPoints[b].mLocalPointB), &contacts[b].mLocalPointB.x);
 			V4StoreA(manifold.mContactPoints[b].mLocalNormalPen, &contacts[b].mLocalNormal.x);

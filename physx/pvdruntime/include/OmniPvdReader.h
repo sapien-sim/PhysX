@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -32,6 +32,9 @@
 #include "OmniPvdDefines.h"
 #include "OmniPvdCommands.h"
 #include "OmniPvdReadStream.h"
+
+#define OMNI_PVD_MAX_STRING_LENGTH   2048
+
 
 /**
  * \brief Used to read debug information from an OmniPvdReadStream
@@ -204,6 +207,17 @@ public:
 	 * \return The frame ID value
 	 */
 	virtual uint64_t OMNI_PVD_CALL getFrameTimeStop() = 0;
+
+	/**
+	 * \brief Returns data for the last message received.
+	 *
+	 * \param message A handle to the message string is returned.
+	 * \param file A handle to the string containing the file name the message originated from is returned.
+	 * \param line A handle to the line number in the file where the message originated from is returned.
+	 * \param type A handle to the message type is returned.
+	 * \param handle A handle to the Omni PVD class handle is returned.
+	*/
+	virtual bool OMNI_PVD_CALL getMessageData(const char*& message, const char*& file, uint32_t& line, uint32_t& type, OmniPvdClassHandle& handle) = 0;
 
 	/**
 	 * \brief Returns the class handle containing the enum values, if it was defined, else returns OMNI_PVD_INVALID_HANDLE

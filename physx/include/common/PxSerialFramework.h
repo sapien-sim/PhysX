@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -47,6 +47,7 @@ class PxRepXSerializer;
 class PxSerializer;
 class PxPhysics;
 class PxCollection;
+class PxOutputStream;
 
 //! Default serialization alignment
 #define PX_SERIAL_ALIGN	16
@@ -134,7 +135,7 @@ public:
 
 	\see PxSerializer::exportData, PxSerializer::exportExtraData, PxSerializer::createObject, PxDeserializationContext::readExtraData
 	*/
-	virtual	void				writeData(const void* data, PxU32 size)								= 0;
+	virtual	void				writeData(const void* data, PxU64 size)								= 0;
 
 	/**
 	\brief Aligns the serialized data.
@@ -269,16 +270,6 @@ protected:
 };
 
 /**
-\brief Callback type for exporting binary meta data for a serializable type.
-\deprecated Binary conversion and binary meta data are deprecated.
-
-\see PxSerializationRegistry::registerBinaryMetaDataCallback
-
-\param stream	Stream to store binary meta data. 
-*/
-typedef PX_DEPRECATED void (*PxBinaryMetaDataCallback)(PxOutputStream& stream);
-
-/**
 \brief Class serving as a registry for XML (RepX) and binary serializable types.
 
 In order to serialize and deserialize objects the application needs
@@ -317,19 +308,6 @@ public:
 	*/
 	virtual PxSerializer*               unregisterSerializer(PxType type) = 0;
 
-	/**
-	\brief Register binary meta data callback
-
-	\deprecated Binary conversion and binary meta data are deprecated.
-
-	The callback is executed when calling PxSerialization::dumpBinaryMetaData.
-
-	\param	callback PxBinaryMetaDataCallback to be registered.
-
-	\see PxBinaryMetaDataCallback, PxSerialization::dumpBinaryMetaData
-	*/
-	PX_DEPRECATED virtual void			registerBinaryMetaDataCallback(PxBinaryMetaDataCallback callback) = 0;
-	
 	/**
 	\brief Returns PxSerializer corresponding to type
 

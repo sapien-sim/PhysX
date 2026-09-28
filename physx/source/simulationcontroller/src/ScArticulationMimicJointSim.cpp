@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -45,6 +45,8 @@ Sc::ArticulationMimicJointSim::ArticulationMimicJointSim(ArticulationMimicJointC
 	mLLMimicJoint.axisB = mimicJointCore.mAxisB;
 	mLLMimicJoint.gearRatio = mimicJointCore.mGearRatio;
 	mLLMimicJoint.offset = mimicJointCore.mOffset;
+	mLLMimicJoint.naturalFrequency = mimicJointCore.mNaturalFrequency;
+	mLLMimicJoint.dampingRatio = mimicJointCore.mDampingRatio;
 }
 
 Sc::ArticulationMimicJointSim::~ArticulationMimicJointSim()
@@ -63,6 +65,19 @@ void Sc::ArticulationMimicJointSim::setOffset(const PxReal offset)
 	mLLMimicJoint.offset = offset;
 	mArticulationSim->setArticulationDirty(Dy::ArticulationDirtyFlag::eDIRTY_MIMIC_JOINT);
 }
+
+void Sc::ArticulationMimicJointSim::setNaturalFrequency(const PxReal naturalFrequency)
+{
+	mLLMimicJoint.naturalFrequency = naturalFrequency;
+	mArticulationSim->setArticulationDirty(Dy::ArticulationDirtyFlag::eDIRTY_MIMIC_JOINT);
+}
+
+void Sc::ArticulationMimicJointSim::setDampingRatio(const PxReal dampingRatio)
+{
+	mLLMimicJoint.dampingRatio = dampingRatio;
+	mArticulationSim->setArticulationDirty(Dy::ArticulationDirtyFlag::eDIRTY_MIMIC_JOINT);
+}
+
 
 }
 

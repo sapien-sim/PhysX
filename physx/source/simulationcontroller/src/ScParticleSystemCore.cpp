@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 
 #include "foundation/PxPreprocessor.h"
 
@@ -230,20 +230,6 @@ PxActor* Sc::ParticleSystemCore::getPxActor() const
 	return PxPointerOffset<PxActor*>(const_cast<ParticleSystemCore*>(this), gOffsetTable.scCore2PxActor[getActorCoreType()]);
 }
 
-void Sc::ParticleSystemCore::addRigidAttachment(Sc::BodyCore* core)
-{
-	Sc::ParticleSystemSim* sim = getSim();
-	if(sim)
-		sim->getScene().addRigidAttachment(core, *sim);
-}
-
-void Sc::ParticleSystemCore::removeRigidAttachment(Sc::BodyCore* core)
-{
-	Sc::ParticleSystemSim* sim = getSim();
-	if (sim)
-		sim->getScene().removeRigidAttachment(core, *sim);
-}
-
 void Sc::ParticleSystemCore::setFlags(PxParticleFlags flags)
 {
 	Sc::ParticleSystemSim* sim = getSim();
@@ -258,14 +244,11 @@ void Sc::ParticleSystemCore::setFlags(PxParticleFlags flags)
 		if (wasRigidCollisionDisabled ^ isRigidCollisionDisabled)
 		{
 			if (wasRigidCollisionDisabled)
-				sim->getShapeSim().createLowLevelVolume();
+				sim->createLowLevelVolume();
 			else
-				sim->getShapeSim().destroyLowLevelVolume();
-
+				sim->destroyLowLevelVolume();
 		}
 	}
-
-	
 }
 
 #endif //PX_SUPPORT_GPU_PHYSX

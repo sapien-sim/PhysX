@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -38,7 +38,6 @@
 // ****************************************************************************
 
 #include <ctype.h>
-#include <vector>
 #include "PxPhysicsAPI.h"
 #include "extensions/PxCollectionExt.h"
 #include "../snippetcommon/SnippetPrint.h"
@@ -66,7 +65,7 @@ PxReal stackZ = 10.0f;
 Allocates 128 byte aligned memory block for binary serialized data
 Stores pointer to memory in gMemBlocks for later deallocation
 */
-void* createAlignedBlock(PxU32 size)
+void* createAlignedBlock(PxU64 size)
 {
 	PX_ASSERT(gMemBlockCount < MAX_MEMBLOCKS);
 	PxU8* baseAddr = static_cast<PxU8*>(malloc(size + PX_SERIAL_FILE_ALIGN - 1));
@@ -97,7 +96,7 @@ void createStack(const PxTransform& t, PxU32 size, PxReal halfExtent)
 // the query shapes into the AABB tree.
 void createStackWithRuntimePrunerStructure(const PxTransform& t, PxU32 size, PxReal halfExtent)
 {
-	std::vector<PxRigidActor*> actors;
+	PxArray<PxRigidActor*> actors;
 	PxShape* shape = gPhysics->createShape(PxBoxGeometry(halfExtent, halfExtent, halfExtent), *gMaterial);
 	for (PxU32 i = 0; i < size; i++)
 	{
@@ -108,7 +107,7 @@ void createStackWithRuntimePrunerStructure(const PxTransform& t, PxU32 size, PxR
 			body->attachShape(*shape);
 			PxRigidBodyExt::updateMassAndInertia(*body, 10.0f);
 			// store the actors, will be added later
-			actors.push_back(body);
+			actors.pushBack(body);
 		}
 	}
 	shape->release();
@@ -128,7 +127,7 @@ void createStackWithSerializedPrunerStructure(const PxTransform& t, PxU32 size, 
 	PxCollection* collection = PxCreateCollection();		// collection for all the objects
 	PxSerializationRegistry* sr = PxSerialization::createSerializationRegistry(*gPhysics);
 
-	std::vector<PxRigidActor*> actors;
+	PxArray<PxRigidActor*> actors;
 	PxShape* shape = gPhysics->createShape(PxBoxGeometry(halfExtent, halfExtent, halfExtent), *gMaterial);
 	for (PxU32 i = 0; i < size; i++)
 	{
@@ -139,7 +138,7 @@ void createStackWithSerializedPrunerStructure(const PxTransform& t, PxU32 size, 
 			body->attachShape(*shape);
 			PxRigidBodyExt::updateMassAndInertia(*body, 10.0f);
 			// store the actors, will be added later
-			actors.push_back(body);
+			actors.pushBack(body);
 		}
 	}
 	collection->add(*shape);	
@@ -158,7 +157,7 @@ void createStackWithSerializedPrunerStructure(const PxTransform& t, PxU32 size, 
 
 	// Release the used items added to the collection.
 	ps->release();
-	for (size_t i = 0; i < actors.size(); i++)
+	for (PxU32 i = 0; i < actors.size(); i++)
 	{
 		actors[i]->release();
 	}	

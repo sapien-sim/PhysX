@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -328,6 +328,7 @@ namespace Ext
 					c->solveHint = PxConstraintSolveHint::eINEQUALITY;
 					c->mods.bounce.restitution = limit.restitution;
 					c->mods.bounce.velocityThreshold = limit.bounceThreshold;
+					c->minImpulse = 0.0f;
 
 					if (c->geometricError > 0.0f)
 					{
@@ -390,7 +391,6 @@ namespace Ext
 				}
 
 				c->flags = flags;
-				c->minImpulse = 0.0f;
 			}
 
 			void addDrive(Px1DConstraint* c, PxReal velTarget, const PxD6JointDrive& drive)
@@ -398,8 +398,13 @@ namespace Ext
 				c->velocityTarget = velTarget;
 
 				PxU16 flags = PxU16(c->flags | Px1DConstraintFlag::eSPRING | Px1DConstraintFlag::eHAS_DRIVE_LIMIT);
+				
 				if(drive.flags & PxD6JointDriveFlag::eACCELERATION)
 					flags |= Px1DConstraintFlag::eACCELERATION_SPRING;
+				
+				if (drive.flags & PxD6JointDriveFlag::eOUTPUT_FORCE)
+					flags |= Px1DConstraintFlag::eOUTPUT_FORCE;
+
 				c->flags = flags;
 				c->mods.spring.stiffness = drive.stiffness;
 				c->mods.spring.damping = drive.damping;

@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.
 
@@ -44,8 +44,8 @@
 #include "PsPvd.h"
 
 #include "PxsMaterialCore.h"
-#include "PxsFEMSoftBodyMaterialCore.h"
-#include "PxsFEMClothMaterialCore.h"
+#include "PxsDeformableSurfaceMaterialCore.h"
+#include "PxsDeformableVolumeMaterialCore.h"
 #include "PxsPBDMaterialCore.h"
 
 namespace physx
@@ -68,10 +68,11 @@ class NpActor;
 class NpScene;
 
 #if PX_SUPPORT_GPU_PHYSX
-class NpSoftBody;
-class NpFEMCloth;
+class NpDeformableSurface;
+class NpDeformableVolume;
 class NpPBDParticleSystem;
-class NpHairSystem;
+class NpDeformableAttachment;
+class NpDeformableElementFilter;
 #endif
 
 namespace Sc
@@ -89,23 +90,23 @@ class PvdSceneClient : public PxPvdSceneClient, public PvdClient, public PvdVisu
 	virtual					~PvdSceneClient();
 
 	// PxPvdSceneClient
-	virtual	void			setScenePvdFlag(PxPvdSceneFlag::Enum flag, bool value);
-	virtual	void			setScenePvdFlags(PxPvdSceneFlags flags)				{ mFlags = flags;	}
-	virtual	PxPvdSceneFlags	getScenePvdFlags()							const	{ return mFlags;	}
-	virtual	void			updateCamera(const char* name, const PxVec3& origin, const PxVec3& up, const PxVec3& target);
-	virtual	void			drawPoints(const PxDebugPoint* points, PxU32 count);
-	virtual	void			drawLines(const PxDebugLine* lines, PxU32 count);
-	virtual	void			drawTriangles(const PxDebugTriangle* triangles, PxU32 count);
-	virtual	void			drawText(const PxDebugText& text);
-	virtual	PvdClient*		getClientInternal()									{ return this;		}
+	virtual	void			setScenePvdFlag(PxPvdSceneFlag::Enum flag, bool value) PX_OVERRIDE;
+	virtual	void			setScenePvdFlags(PxPvdSceneFlags flags) PX_OVERRIDE { mFlags = flags;	}
+	virtual	PxPvdSceneFlags	getScenePvdFlags()							const PX_OVERRIDE { return mFlags;	}
+	virtual	void			updateCamera(const char* name, const PxVec3& origin, const PxVec3& up, const PxVec3& target) PX_OVERRIDE;
+	virtual	void			drawPoints(const PxDebugPoint* points, PxU32 count) PX_OVERRIDE;
+	virtual	void			drawLines(const PxDebugLine* lines, PxU32 count) PX_OVERRIDE;
+	virtual	void			drawTriangles(const PxDebugTriangle* triangles, PxU32 count) PX_OVERRIDE;
+	virtual	void			drawText(const PxDebugText& text) PX_OVERRIDE;
+	virtual	PvdClient*		getClientInternal() PX_OVERRIDE { return this;		}
 	//~PxPvdSceneClient
 	
 	// pvdClient	
-	virtual	PvdDataStream*		getDataStream()			{ return mPvdDataStream;	}
-	virtual bool                isConnected()	const	{ return mIsConnected;		}
-	virtual void                onPvdConnected();
-	virtual void                onPvdDisconnected();
-	virtual void                flush()					{}
+	virtual	PvdDataStream*		getDataStream() PX_OVERRIDE { return mPvdDataStream;	}
+	virtual bool                isConnected()	const PX_OVERRIDE { return mIsConnected;		}
+	virtual void                onPvdConnected() PX_OVERRIDE;
+	virtual void                onPvdDisconnected() PX_OVERRIDE;
+	virtual void                flush() PX_OVERRIDE {}
 	//~pvdClient
 
 	PX_FORCE_INLINE bool checkPvdDebugFlag()	const
@@ -173,13 +174,13 @@ class PvdSceneClient : public PxPvdSceneClient, public PvdClient, public PvdVisu
 	void updatePvdProperties(const PxsMaterialCore* materialCore);
 	void releasePvdInstance	(const PxsMaterialCore* materialCore);
 
-	void createPvdInstance	(const PxsFEMSoftBodyMaterialCore* materialCore);
-	void updatePvdProperties(const PxsFEMSoftBodyMaterialCore* materialCore);
-	void releasePvdInstance	(const PxsFEMSoftBodyMaterialCore* materialCore);
+	void createPvdInstance(const PxsDeformableSurfaceMaterialCore* materialCore);
+	void updatePvdProperties(const PxsDeformableSurfaceMaterialCore* materialCore);
+	void releasePvdInstance(const PxsDeformableSurfaceMaterialCore* materialCore);
 
-	void createPvdInstance	(const PxsFEMClothMaterialCore* materialCore);
-	void updatePvdProperties(const PxsFEMClothMaterialCore* materialCore);
-	void releasePvdInstance	(const PxsFEMClothMaterialCore* materialCore);
+	void createPvdInstance	(const PxsDeformableVolumeMaterialCore* materialCore);
+	void updatePvdProperties(const PxsDeformableVolumeMaterialCore* materialCore);
+	void releasePvdInstance	(const PxsDeformableVolumeMaterialCore* materialCore);
 
 	void createPvdInstance	(const PxsPBDMaterialCore* materialCore);
 	void updatePvdProperties(const PxsPBDMaterialCore* materialCore);
@@ -202,17 +203,17 @@ class PvdSceneClient : public PxPvdSceneClient, public PvdClient, public PvdVisu
 	void releasePvdInstance		(const NpAggregate* aggregate);
 
 #if PX_SUPPORT_GPU_PHYSX
-	void createPvdInstance(const NpSoftBody* softBody);
-	void updatePvdProperties(const NpSoftBody* softBody);
-	void attachAggregateActor(const NpSoftBody* softBody, NpActor* actor);
-	void detachAggregateActor(const NpSoftBody* softBody, NpActor* actor);
-	void releasePvdInstance(const NpSoftBody* softBody);
+	void createPvdInstance(const NpDeformableSurface* deformableSurface);
+	void updatePvdProperties(const NpDeformableSurface* deformableSurface);
+	void attachAggregateActor(const NpDeformableSurface* deformableSurface, NpActor* actor);
+	void detachAggregateActor(const NpDeformableSurface* deformableSurface, NpActor* actor);
+	void releasePvdInstance(const NpDeformableSurface* deformableSurface);
 
-	void createPvdInstance(const NpFEMCloth* femCloth);
-	void updatePvdProperties(const NpFEMCloth* femCloth);
-	void attachAggregateActor(const NpFEMCloth* femCloth, NpActor* actor);
-	void detachAggregateActor(const NpFEMCloth* femCloth, NpActor* actor);
-	void releasePvdInstance(const NpFEMCloth* femCloth);
+	void createPvdInstance(const NpDeformableVolume* deformableVolume);
+	void updatePvdProperties(const NpDeformableVolume* deformableVolume);
+	void attachAggregateActor(const NpDeformableVolume* deformableVolume, NpActor* actor);
+	void detachAggregateActor(const NpDeformableVolume* deformableVolume, NpActor* actor);
+	void releasePvdInstance(const NpDeformableVolume* deformableVolume);
 
 	void createPvdInstance(const NpPBDParticleSystem* particleSystem);
 	void updatePvdProperties(const NpPBDParticleSystem* particleSystem);
@@ -220,11 +221,17 @@ class PvdSceneClient : public PxPvdSceneClient, public PvdClient, public PvdVisu
 	void detachAggregateActor(const NpPBDParticleSystem* particleSystem, NpActor* actor);
 	void releasePvdInstance(const NpPBDParticleSystem* particleSystem);
 
-	void createPvdInstance(const NpHairSystem* hairSystem);
-	void updatePvdProperties(const NpHairSystem* hairSystem);
-	void attachAggregateActor(const NpHairSystem* hairSystem, NpActor* actor);
-	void detachAggregateActor(const NpHairSystem* hairSystem, NpActor* actor);
-	void releasePvdInstance(const NpHairSystem* hairSystem);
+	void createPvdInstance(const NpDeformableAttachment* attachment);
+	void updatePvdProperties(const NpDeformableAttachment* attachment);
+	void attachAggregateActor(const NpDeformableAttachment* attachment, NpActor* actor);
+	void detachAggregateActor(const NpDeformableAttachment* attachment, NpActor* actor);
+	void releasePvdInstance(const NpDeformableAttachment* attachment);
+
+	void createPvdInstance(const NpDeformableElementFilter* elementFilter);
+	void updatePvdProperties(const NpDeformableElementFilter* elementFilter);
+	void attachAggregateActor(const NpDeformableElementFilter* elementFilter, NpActor* actor);
+	void detachAggregateActor(const NpDeformableElementFilter* elementFilter, NpActor* actor);
+	void releasePvdInstance(const NpDeformableElementFilter* elementFilter);
 #endif
 
 	void originShift(PxVec3 shift);
@@ -233,7 +240,7 @@ class PvdSceneClient : public PxPvdSceneClient, public PvdClient, public PvdVisu
 	void updateSceneQueries();
 
 	// PvdVisualizer
-	void visualize(PxArticulationLink& link);
+	virtual	void visualize(PxArticulationLink& link)	PX_OVERRIDE;
 	void visualize(const PxRenderBuffer& debugRenderable);
 
   private:

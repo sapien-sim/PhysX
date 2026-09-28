@@ -22,13 +22,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
 #ifndef PX_PHYSICS_H
 #define PX_PHYSICS_H
-
 
 #include "PxPhysXConfig.h"
 #include "PxDeletionListener.h"
@@ -36,11 +35,10 @@
 #include "PxShape.h"
 #include "PxAggregate.h"
 #include "PxParticleSystem.h"
+#include "PxDeformableSurface.h"
+#include "PxDeformableAttachment.h"
+#include "PxDeformableElementFilter.h"
 #include "foundation/PxPreprocessor.h"
-#if PX_ENABLE_FEATURES_UNDER_CONSTRUCTION
-#include "PxFEMCloth.h"
-#include "PxHairSystem.h"
-#endif
 
 #if !PX_DOXYGEN
 namespace physx
@@ -64,10 +62,9 @@ class PxFoundation;
 class PxPruningStructure;
 class PxBVH;
 
-class PxParticleClothBuffer;
-class PxParticleRigidBuffer;
+class PxDeformableVolumeMesh;
 
-class PxSoftBodyMesh;
+class PxInputStream;
 
 /**
 \brief Abstract singleton factory class used for instancing objects in the Physics SDK.
@@ -116,10 +113,31 @@ public:
 	virtual PxFoundation& getFoundation() = 0;
 
 	/**
+	\brief Gets PxPhysics object insertion interface.
+
+	The insertion interface is needed for PxCreateTriangleMesh, PxCooking::createTriangleMesh etc., this allows runtime mesh creation.
+
+	\see PxCreateTriangleMesh PxCreateHeightField PxCreateTetrahedronMesh PxCreateBVH
+	     PxCooking::createTriangleMesh PxCooking::createHeightfield PxCooking::createTetrahedronMesh PxCooking::createBVH
+	*/
+	virtual PxInsertionCallback& getPhysicsInsertionCallback() = 0;
+
+	/**
 	\brief Retrieves the PxOmniPvd instance if there is one registered with PxPhysics.
 	\return A pointer to a PxOmniPvd object.
 	*/
 	virtual PxOmniPvd* getOmniPvd() = 0;
+
+	/**
+	\brief Returns the simulation tolerance parameters.
+	\return The current simulation tolerance parameters.
+	*/
+	virtual const PxTolerancesScale& getTolerancesScale() const = 0;
+
+	//\}
+	/** \name Aggregates
+	*/
+	//\{
 
 	/**
 	\brief Creates an aggregate with the specified maximum size and filtering hint.
@@ -141,13 +159,14 @@ public:
 	virtual	PxAggregate* createAggregate(PxU32 maxActor, PxU32 maxShape, PxAggregateFilterHint filterHint) = 0;
 
 	/**
-	\brief Returns the simulation tolerance parameters.
-	\return The current simulation tolerance parameters.
+	\brief Return the number of aggregates that currently exist.
+
+	\return Number of aggregates.
 	*/
-	virtual const PxTolerancesScale& getTolerancesScale() const = 0;
+	virtual PxU32 getNbAggregates() const = 0;
 
 	//\}
-	/** \name Meshes
+	/** \name Triangle Meshes
 	*/
 	//\{
 
@@ -188,7 +207,6 @@ public:
 	*/
 	virtual	PxU32 getTriangleMeshes(PxTriangleMesh** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const = 0;
 
-
 	//\}
 	/** \name Tetrahedron Meshes
 	*/
@@ -205,16 +223,6 @@ public:
 	\see PxTetrahedronMesh PxMeshPreprocessingFlag PxTetrahedronMesh.release() PxInputStream PxTriangleMeshFlag
 	*/
 	virtual PxTetrahedronMesh* createTetrahedronMesh(PxInputStream& stream) = 0;
-
-	/**
-	\brief Creates a softbody mesh object.
-
-	\param[in] stream The softbody mesh stream.
-	\return The new softbody mesh.
-
-	\see createTetrahedronMesh
-	*/
-	virtual PxSoftBodyMesh* createSoftBodyMesh(PxInputStream& stream) = 0;
 
 	/**
 	\brief Return the number of tetrahedron meshes that currently exist.
@@ -240,6 +248,11 @@ public:
 	\see getNbTetrahedronMeshes() PxTetrahedronMesh
 	*/
 	virtual	PxU32 getTetrahedronMeshes(PxTetrahedronMesh** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const = 0;
+
+	//\}
+	/** \name Heightfields
+	*/
+	//\{
 
 	/**
 	\brief Creates a heightfield object from previously cooked stream.
@@ -278,6 +291,11 @@ public:
 	*/
 	virtual	PxU32 getHeightFields(PxHeightField** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const = 0;
 
+	//\}
+	/** \name Convex meshes
+	*/
+	//\{
+
 	/**
 	\brief Creates a convex mesh object.
 
@@ -314,6 +332,26 @@ public:
 	\see getNbConvexMeshes() PxConvexMesh
 	*/
 	virtual	PxU32 getConvexMeshes(PxConvexMesh** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const = 0;
+
+	//\}
+	/** \name Deformable volume meshes
+	*/
+	//\{
+
+	/**
+	\brief Creates a deformable volume mesh object.
+
+	\param[in] stream The deformable volume mesh stream.
+	\return The new deformable volume mesh.
+
+	\see createTetrahedronMesh
+	*/
+	virtual PxDeformableVolumeMesh* createDeformableVolumeMesh(PxInputStream& stream) = 0;
+
+	//\}
+	/** \name BVHs
+	*/
+	//\{
 
 	/**
 	\brief Creates a bounding volume hierarchy.
@@ -463,7 +501,7 @@ public:
 	}
 
 	/**
-	\brief Creates a shape which may be attached to one or more softbody actors
+	\brief Creates a shape which may be attached to exactly one deformable volume actor
 
 	The shape will be created with a reference count of 1.
 
@@ -478,17 +516,16 @@ public:
 	\see PxShape
 	*/
 	PX_FORCE_INLINE	PxShape* createShape(	const PxGeometry& geometry,
-											const PxFEMSoftBodyMaterial& material,
+											const PxDeformableVolumeMaterial& material,
 											bool isExclusive = false,
 											PxShapeFlags shapeFlags = PxShapeFlag::eVISUALIZATION | PxShapeFlag::eSCENE_QUERY_SHAPE | PxShapeFlag::eSIMULATION_SHAPE)
 	{
-		PxFEMSoftBodyMaterial* materialPtr = const_cast<PxFEMSoftBodyMaterial*>(&material);
+		PxDeformableVolumeMaterial* materialPtr = const_cast<PxDeformableVolumeMaterial*>(&material);
 		return createShape(geometry, &materialPtr, 1, isExclusive, shapeFlags);
 	}
 
-#if PX_ENABLE_FEATURES_UNDER_CONSTRUCTION
 	/**
-	\brief Creates a shape which may be attached to one or more FEMCloth actors
+	\brief Creates a shape which may be attached to exactly one deformable surface actor
 
 	The shape will be created with a reference count of 1.
 
@@ -503,14 +540,13 @@ public:
 	\see PxShape
 	*/
 	PX_FORCE_INLINE	PxShape* createShape(	const PxGeometry& geometry,
-											const PxFEMClothMaterial& material,
+											const PxDeformableSurfaceMaterial& material,
 											bool isExclusive = false,
 											PxShapeFlags shapeFlags = PxShapeFlag::eVISUALIZATION | PxShapeFlag::eSCENE_QUERY_SHAPE | PxShapeFlag::eSIMULATION_SHAPE)
 	{
-		PxFEMClothMaterial* materialPtr = const_cast<PxFEMClothMaterial*>(&material);
+		PxDeformableSurfaceMaterial* materialPtr = const_cast<PxDeformableSurfaceMaterial*>(&material);
 		return createShape(geometry, &materialPtr, 1, isExclusive, shapeFlags);
 	}
-#endif
 
 	/**
 	\brief Creates a shape which may be attached to multiple actors
@@ -536,13 +572,13 @@ public:
 									PxShapeFlags shapeFlags = PxShapeFlag::eVISUALIZATION | PxShapeFlag::eSCENE_QUERY_SHAPE | PxShapeFlag::eSIMULATION_SHAPE) = 0;
 
 	virtual PxShape* createShape(	const PxGeometry& geometry,
-									PxFEMSoftBodyMaterial*const * materials,
+									PxDeformableSurfaceMaterial*const * materials,
 									PxU16 materialCount,
 									bool isExclusive = false,
 									PxShapeFlags shapeFlags = PxShapeFlag::eVISUALIZATION | PxShapeFlag::eSCENE_QUERY_SHAPE | PxShapeFlag::eSIMULATION_SHAPE) = 0;
 
 	virtual PxShape* createShape(	const PxGeometry& geometry,
-									PxFEMClothMaterial*const * materials,
+									PxDeformableVolumeMaterial*const * materials,
 									PxU16 materialCount,
 									bool isExclusive = false,
 									PxShapeFlags shapeFlags = PxShapeFlag::eVISUALIZATION | PxShapeFlag::eSCENE_QUERY_SHAPE | PxShapeFlag::eSIMULATION_SHAPE) = 0;
@@ -596,6 +632,13 @@ public:
 	virtual PxConstraint* createConstraint(PxRigidActor* actor0, PxRigidActor* actor1, PxConstraintConnector& connector, const PxConstraintShaderTable& shaders, PxU32 dataSize) = 0;
 
 	/**
+	\brief Return the number of constraints that currently exist.
+
+	\return Number of constraints.
+	*/
+	virtual PxU32 getNbConstraints() const = 0;
+
+	/**
 	\brief Creates a reduced-coordinate articulation with all fields initialized to their default values.
 
 	\return the new articulation
@@ -604,38 +647,65 @@ public:
 	*/
 	virtual PxArticulationReducedCoordinate* createArticulationReducedCoordinate() = 0;
 
+	/**
+	\brief Return the number of articulations that currently exist.
+
+	\return Number of articulations.
+	*/
+	virtual PxU32 getNbArticulations() const = 0;
+
+	//\}
+	/** \name Misc
+	*/
+	//\{
 
 	/**
-	\brief Creates a FEM-based cloth with all fields initialized to their default values.
-	\warning Feature under development, only for internal usage.
+	\brief Creates an attachment between two actors, based on the provided PxDeformableAttachmentData. At least one of the actors must be a deformable.
 
-	\param[in] cudaContextManager The PxCudaContextManager this instance is tied to.
-	\return the new FEM-cloth
+	An attachment is a collection of one or more positional constraints between a point on one actor and a point on another actor.
+	Attachments between two rigid objects are not permitted, use joints instead.
 
-	\see PxFEMCloth
+	\note The attachment is only active when both actors are added to the same scene or one of the actors is NULL.
+
+	\param[in] data Attachment data.
+	\return The PxDeformableAttachment created if successful, NULL otherwise.
+	\see PxDeformableAttachmentData, PxDeformableAttachment
 	*/
-	virtual PxFEMCloth* createFEMCloth(PxCudaContextManager& cudaContextManager) = 0;
+	virtual PxDeformableAttachment* createDeformableAttachment(const PxDeformableAttachmentData& data) = 0;
 
 	/**
-	\brief Creates a FEM-based soft body with all fields initialized to their default values.
+	\brief Creates an element-level collision filter between two actors, based on the provided PxDeformableElementFilterData. At least one of the actors must be a deformable.
 
-	\param[in] cudaContextManager The PxCudaContextManager this instance is tied to.
-	\return the new soft body
+	Element filters define how parts of deformable actors are excluded from collisions.
+	They are usually added to avoid conflicting attachment and contact constraints.
 
-	\see PxSoftBody
+	\note The element filter is only active when both actors are added to the same scene or one of the actors is NULL.
+
+	\param[in] data Element filter data.
+	\return The PxDeformableElementFilter created if successful, NULL otherwise.
+	\see PxDeformableElementFilterData, PxDeformableElementFilter
 	*/
-	virtual PxSoftBody* createSoftBody(PxCudaContextManager& cudaContextManager) = 0;
+	virtual PxDeformableElementFilter* createDeformableElementFilter(const PxDeformableElementFilterData& data) = 0;
 
 	/**
-	\brief Creates a hair system with all fields initialized to their default values.
-	\warning Feature under development, only for internal usage.
+	\brief Creates a deformable surface with all fields initialized to their default values.
 
 	\param[in] cudaContextManager The PxCudaContextManager this instance is tied to.
-	\return the new hair system
+	\return the new deformable surface
 
-	\see PxHairSystem
+	\see PxDeformableSurface
 	*/
-	virtual PxHairSystem* createHairSystem(PxCudaContextManager& cudaContextManager) = 0;
+	virtual PxDeformableSurface* createDeformableSurface(PxCudaContextManager& cudaContextManager) = 0;
+
+	/**
+	\brief Creates a FEM-based deformable volume with all fields initialized to their default values.
+
+	\param[in] cudaContextManager The PxCudaContextManager this instance is tied to.
+	\return the new deformable volume
+
+	\see PxDeformableVolume
+	*/
+	virtual PxDeformableVolume* createDeformableVolume(PxCudaContextManager& cudaContextManager) = 0;
 
 	/**
 	\brief Creates a particle system with a position-based dynamics (PBD) solver.
@@ -666,55 +736,25 @@ public:
 	\brief Create particle buffer to simulate fluid/granular material.
 
 	\param[in] maxParticles The maximum number of particles in this buffer.
-	\param[in] maxVolumes The maximum number of volumes in this buffer. See PxParticleVolume.
 	\param[in] cudaContextManager The PxCudaContextManager this buffer is tied to.
 	\return PxParticleBuffer instance
 
 	\see PxParticleBuffer
 	*/
-	virtual PxParticleBuffer* createParticleBuffer(PxU32 maxParticles, PxU32 maxVolumes, PxCudaContextManager* cudaContextManager) = 0;
+	virtual PxParticleBuffer* createParticleBuffer(PxU32 maxParticles, PxCudaContextManager* cudaContextManager) = 0;
 
 	/**
 	\brief Create a particle buffer for fluid dynamics with diffuse particles. Diffuse particles are used to simulate fluid effects
 	such as foam, spray and bubbles.
 
 	\param[in] maxParticles The maximum number of particles in this buffer.
-	\param[in] maxVolumes The maximum number of volumes in this buffer. See #PxParticleVolume.
-	\param[in] maxDiffuseParticles The max number of diffuse particles int this buffer.
+	\param[in] maxDiffuseParticles The max number of diffuse particles in this buffer.
 	\param[in] cudaContextManager The PxCudaContextManager this buffer is tied to.
 	\return PxParticleAndDiffuseBuffer instance
 
 	\see PxParticleAndDiffuseBuffer, PxDiffuseParticleParams
 	*/
-	virtual PxParticleAndDiffuseBuffer* createParticleAndDiffuseBuffer(PxU32 maxParticles, PxU32 maxVolumes, PxU32 maxDiffuseParticles, PxCudaContextManager* cudaContextManager) = 0;
-
-	/**
-	\brief Create a particle buffer to simulate particle cloth.
-
-	\param[in] maxParticles The maximum number of particles in this buffer.
-	\param[in] maxNumVolumes The maximum number of volumes in this buffer. See #PxParticleVolume.
-	\param[in] maxNumCloths The maximum number of cloths in this buffer. See #PxParticleCloth.
-	\param[in] maxNumTriangles The maximum number of triangles for aerodynamics.
-	\param[in] maxNumSprings The maximum number of springs to connect particles. See #PxParticleSpring.
-	\param[in] cudaContextManager The PxCudaContextManager this buffer is tied to.
-	\return PxParticleClothBuffer instance
-
-	\see PxParticleClothBuffer
-	*/
-	virtual PxParticleClothBuffer* createParticleClothBuffer(PxU32 maxParticles, PxU32 maxNumVolumes, PxU32 maxNumCloths, PxU32 maxNumTriangles, PxU32 maxNumSprings, PxCudaContextManager* cudaContextManager) = 0;
-	
-	/**
-	\brief Create a particle buffer to simulate rigid bodies using shape matching with particles.
-
-	\param[in] maxParticles The maximum number of particles in this buffer.
-	\param[in] maxNumVolumes The maximum number of volumes in this buffer. See #PxParticleVolume.
-	\param[in] maxNumRigids The maximum number of rigid bodies this buffer is used to simulate.
-	\param[in] cudaContextManager The PxCudaContextManager this buffer is tied to.
-	\return PxParticleRigidBuffer instance
-
-	\see PxParticleRigidBuffer
-	*/
-	virtual PxParticleRigidBuffer* createParticleRigidBuffer(PxU32 maxParticles, PxU32 maxNumVolumes, PxU32 maxNumRigids, PxCudaContextManager* cudaContextManager) = 0;
+	virtual PxParticleAndDiffuseBuffer* createParticleAndDiffuseBuffer(PxU32 maxParticles, PxU32 maxDiffuseParticles, PxCudaContextManager* cudaContextManager) = 0;
 
 	//\}
 	/** \name Materials
@@ -728,7 +768,7 @@ public:
 
 	\param	[in] staticFriction		The coefficient of static friction
 	\param	[in] dynamicFriction	The coefficient of dynamic friction
-	\param	[in] restitution		The coefficient of restitution
+	\param	[in] restitution		The coefficient of restitution (if in range [0,1]) or the spring stiffness for compliant contact (if in range (-PX_MAX_REAL, 0))
 
 	\see PxMaterial
 	*/
@@ -760,29 +800,34 @@ public:
 	virtual PxU32 getMaterials(PxMaterial** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const = 0;
 
 	/**
-	\brief Creates a new FEM soft body material with certain default properties.
+	\brief Creates a new surface deformable material with certain default properties.
 
-	\return The new FEM material.
+	\return The new surface deformable material.
 
 	\param	[in] youngs					The young's modulus
 	\param	[in] poissons				The poissons's ratio
 	\param	[in] dynamicFriction		The dynamic friction coefficient
+	\param	[in] thickness				The thickness of the surface
+	\param	[in] bendingStiffness		The bending stiffness of the surface
+	\param	[in] elasticityDamping		The damping of the surface with respect to stretch and shear
+	\param	[in] bendingDamping			The damping of the surface with respect to bending
 
-	\see PxFEMSoftBodyMaterial
+	\see PxDeformableSurfaceMaterial
 	*/
-	virtual PxFEMSoftBodyMaterial* createFEMSoftBodyMaterial(PxReal youngs, PxReal poissons, PxReal dynamicFriction) = 0;
+	virtual PxDeformableSurfaceMaterial* createDeformableSurfaceMaterial(PxReal youngs, PxReal poissons, PxReal dynamicFriction, 
+		PxReal thickness = 0.001f, PxReal bendingStiffness = 0.0f, PxReal elasticityDamping = 0.0f, PxReal bendingDamping = 0.0f) = 0;
 
 	/**
-	\brief Return the number of FEM soft body materials that currently exist.
+	\brief Return the number of deformable surface materials that currently exist.
 
-	\return Number of FEM materials.
+	\return Number of deformable surface materials.
 
-	\see getFEMSoftBodyMaterials()
+	\see getDeformableSurfaceMaterials()
 	*/
-	virtual PxU32 getNbFEMSoftBodyMaterials() const = 0;
+	virtual PxU32 getNbDeformableSurfaceMaterials() const = 0;
 
 	/**
-	\brief Writes the array of FEM soft body material pointers to a user buffer.
+	\brief Writes the array of deformable surface material pointers to a user buffer.
 
 	Returns the number of pointers written.
 
@@ -793,36 +838,35 @@ public:
 	\param	[in]  startIndex	Index of first material pointer to be retrieved.
 	\return The number of material pointers written to userBuffer, this should be less or equal to bufferSize.
 
-	\see getNbFEMSoftBodyMaterials() PxFEMSoftBodyMaterial
+	\see getNbDeformableSurfaceMaterials() PxDeformableSurfaceMaterial
 	*/
-	virtual PxU32 getFEMSoftBodyMaterials(PxFEMSoftBodyMaterial** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const = 0;
+	virtual PxU32 getDeformableSurfaceMaterials(PxDeformableSurfaceMaterial** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const = 0;
 
 	/**
-	\brief Creates a new FEM cloth material with certain default properties.
-	\warning Feature under development, only for internal usage.
+	\brief Creates a new deformable volume material with certain default properties.
 
-	\return The new FEM material.
+	\return The new deformable volume material.
 
 	\param	[in] youngs					The young's modulus
 	\param	[in] poissons				The poissons's ratio
 	\param	[in] dynamicFriction		The dynamic friction coefficient
-	\param	[in] thickness				The cloth's thickness
+	\param	[in] elasticityDamping		The elasticity damping
 
-	\see PxFEMClothMaterial
+	\see PxDeformableVolumeMaterial
 	*/
-	virtual PxFEMClothMaterial* createFEMClothMaterial(PxReal youngs, PxReal poissons, PxReal dynamicFriction, PxReal thickness = 0.001f) = 0;
+	virtual PxDeformableVolumeMaterial* createDeformableVolumeMaterial(PxReal youngs, PxReal poissons, PxReal dynamicFriction, PxReal elasticityDamping = 0.0f) = 0;
 
 	/**
-	\brief Return the number of FEM cloth materials that currently exist.
+	\brief Return the number of deformable volume materials that currently exist.
 
-	\return Number of FEM cloth materials.
+	\return Number of materials.
 
-	\see getFEMClothMaterials()
+	\see getDeformableVolumeMaterials()
 	*/
-	virtual PxU32 getNbFEMClothMaterials() const = 0;
+	virtual PxU32 getNbDeformableVolumeMaterials() const = 0;
 
 	/**
-	\brief Writes the array of FEM cloth material pointers to a user buffer.
+	\brief Writes the array of deformable volume material pointers to a user buffer.
 
 	Returns the number of pointers written.
 
@@ -833,9 +877,9 @@ public:
 	\param	[in]  startIndex	Index of first material pointer to be retrieved.
 	\return The number of material pointers written to userBuffer, this should be less or equal to bufferSize.
 
-	\see getNbFEMClothMaterials() PxFEMClothMaterial
+	\see getNbDeformableVolumeMaterials() PxDeformableVolumeMaterial
 	*/
-	virtual PxU32 getFEMClothMaterials(PxFEMClothMaterial** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const = 0;
+	virtual PxU32 getDeformableVolumeMaterials(PxDeformableVolumeMaterial** userBuffer, PxU32 bufferSize, PxU32 startIndex = 0) const = 0;
 
 	/**
 	\brief Creates a new PBD material with certain default properties.
@@ -948,16 +992,6 @@ public:
 	\see PxDeletionListener registerDeletionListenerObjects
 	*/
 	virtual void unregisterDeletionListenerObjects(PxDeletionListener& observer, const PxBase* const* observables, PxU32 observableCount) = 0;
-
-	/**
-	\brief Gets PxPhysics object insertion interface.
-
-	The insertion interface is needed for PxCreateTriangleMesh, PxCooking::createTriangleMesh etc., this allows runtime mesh creation.
-
-	\see PxCreateTriangleMesh PxCreateHeightField PxCreateTetrahedronMesh PxCreateBVH
-	     PxCooking::createTriangleMesh PxCooking::createHeightfield PxCooking::createTetrahedronMesh PxCooking::createBVH
-	*/
-	virtual PxInsertionCallback& getPhysicsInsertionCallback() = 0;
 
 	//\}
 };

@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -298,7 +298,7 @@ struct PxContactStreamIterator
 	*/
 	PX_CUDA_CALLABLE PX_FORCE_INLINE PxContactStreamIterator(const PxU8* contactPatches, const PxU8* contactPoints, const PxU32* contactFaceIndices, PxU32 nbPatches, PxU32 nbContacts) 
 		: zero(0.f)
-	{		
+	{
 		bool modify = false;
 		bool compressedModify = false;
 		bool response = false;
@@ -807,13 +807,13 @@ private:
 
 	const PxContactPatch* mContactPatches;
 	const PxFrictionPatch* mFrictionPatches;
-	const PxU32 mPatchCount;
+	PxU32 mPatchCount;
 	PxI32 mFrictionAnchorIndex;
 	PxI32 mPatchIndex;
 };
 
 /**
-\brief Contains contact information for a contact reported by the direct-GPU contact report API. See PxScene::copyContactData().
+\brief Contains contact information for a contact reported by the direct-GPU contact report API. See PxDirectGPUAPI::copyContactData().
 */
 struct PxGpuContactPair
 {

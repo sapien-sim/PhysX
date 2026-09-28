@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -113,7 +113,7 @@ namespace Gu
 		{
 
 			using namespace aos;
-			const Vec3V n= V3Merge(nx, ny, nz);
+			const Vec3V n = V3Merge(nx, ny, nz);
 			nd = V4SetW(Vec4V_From_Vec3V(n), _d);
 			return *this;
 		}
@@ -140,7 +140,7 @@ namespace Gu
 			return	*this;
 		}
 
-		/***
+		/**
 		\brief Computes distance, assuming plane is normalized
 		\sa normalize
 		*/

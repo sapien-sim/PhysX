@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -63,7 +63,8 @@ NpArticulationJointReducedCoordinate::NpArticulationJointReducedCoordinate(NpArt
 	NpBase(NpType::eARTICULATION_JOINT),
 	mCore(parentFrame, childFrame),
 	mParent(&parent),
-	mChild(&child)
+	mChild(&child),
+	mName(NULL)
 {
 	NpArticulationReducedCoordinate* articulation = static_cast<NpArticulationReducedCoordinate*>(&parent.getRoot());
 	mCore.setArticulation(&articulation->getCore());
@@ -199,6 +200,46 @@ PxReal NpArticulationJointReducedCoordinate::getFrictionCoefficient() const
 	return mCore.getFrictionCoefficient();
 }
 
+void NpArticulationJointReducedCoordinate::setFrictionParams(PxArticulationAxis::Enum axis, const PxJointFrictionParams& jointFrictionParams)
+{
+	NP_WRITE_CHECK(getNpScene());
+
+	PX_CHECK_SCENE_API_WRITE_FORBIDDEN(getNpScene(), "PxArticulationJointReducedCoordinate::setFrictionParams() not allowed while simulation is running. Call will be ignored.")
+
+	PX_CHECK_AND_RETURN(jointFrictionParams.staticFrictionEffort >= jointFrictionParams.dynamicFrictionEffort, "Static friction effort must be greater than or equal to dynamic friction effort.");
+
+	scSetFrictionParams(axis, jointFrictionParams);
+
+#if PX_SUPPORT_OMNI_PVD
+	OMNI_PVD_WRITE_SCOPE_BEGIN(pvdWriter, pvdRegData)
+
+	PxArticulationJointReducedCoordinate& joint = *this;
+	PxReal staticFrictionEffort[PxArticulationAxis::eCOUNT];
+	for (PxU32 ax = 0; ax < PxArticulationAxis::eCOUNT; ++ax)
+		staticFrictionEffort[ax] = mCore.getFrictionParams(static_cast<PxArticulationAxis::Enum>(ax)).staticFrictionEffort;
+	OMNI_PVD_SET_ARRAY_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxArticulationJointReducedCoordinate, staticFrictionEffort,
+								joint, staticFrictionEffort, PxArticulationAxis::eCOUNT);
+	PxReal dynamicFrictionEffort[PxArticulationAxis::eCOUNT];
+	for(PxU32 ax = 0; ax < PxArticulationAxis::eCOUNT; ++ax)
+		dynamicFrictionEffort[ax] = mCore.getFrictionParams(static_cast<PxArticulationAxis::Enum>(ax)).dynamicFrictionEffort;
+	OMNI_PVD_SET_ARRAY_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxArticulationJointReducedCoordinate, dynamicFrictionEffort,
+								joint, dynamicFrictionEffort, PxArticulationAxis::eCOUNT);
+	PxReal viscousFrictionCoefficient[PxArticulationAxis::eCOUNT];
+	for(PxU32 ax = 0; ax < PxArticulationAxis::eCOUNT; ++ax)
+		viscousFrictionCoefficient[ax] = mCore.getFrictionParams(static_cast<PxArticulationAxis::Enum>(ax)).viscousFrictionCoefficient;
+	OMNI_PVD_SET_ARRAY_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxArticulationJointReducedCoordinate, viscousFrictionCoefficient,
+								joint, viscousFrictionCoefficient, PxArticulationAxis::eCOUNT);
+	OMNI_PVD_WRITE_SCOPE_END
+#endif
+}
+
+PxJointFrictionParams NpArticulationJointReducedCoordinate::getFrictionParams(PxArticulationAxis::Enum axis) const
+{
+	NP_READ_CHECK(getNpScene());
+
+	return mCore.getFrictionParams(axis);
+}
+
 void NpArticulationJointReducedCoordinate::setMaxJointVelocity(const PxReal maxJointV)
 {
 	NP_WRITE_CHECK(getNpScene());
@@ -215,6 +256,36 @@ PxReal NpArticulationJointReducedCoordinate::getMaxJointVelocity() const
 	NP_READ_CHECK(getNpScene());
 
 	return mCore.getMaxJointVelocity();
+}
+
+void NpArticulationJointReducedCoordinate::setMaxJointVelocity(PxArticulationAxis::Enum axis, const PxReal maxJointV)
+{
+	NP_WRITE_CHECK(getNpScene());
+
+	PX_CHECK_SCENE_API_WRITE_FORBIDDEN(getNpScene(), "PxArticulationJointReducedCoordinate::setMaxJointVelocity() not allowed while simulation is running. Call will be ignored.")
+
+	scSetMaxJointVelocity(axis, maxJointV);
+#if PX_SUPPORT_OMNI_PVD
+	OMNI_PVD_WRITE_SCOPE_BEGIN(pvdWriter, pvdRegData)
+
+	PxArticulationJointReducedCoordinate& joint = *this;
+	PxReal maxJointVs[PxArticulationAxis::eCOUNT];
+	for (PxU32 ax = 0; ax < PxArticulationAxis::eCOUNT; ++ax)
+		maxJointVs[ax] = mCore.getMaxJointVelocity(static_cast<PxArticulationAxis::Enum>(ax));
+	OMNI_PVD_SET_ARRAY_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxArticulationJointReducedCoordinate, maxJointDofVelocity,
+								joint, maxJointVs, PxArticulationAxis::eCOUNT);
+	PxReal maxJointVScalar = mCore.getMaxJointVelocity();
+	OMNI_PVD_SET_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxArticulationJointReducedCoordinate, maxJointVelocity, joint, maxJointVScalar);
+
+	OMNI_PVD_WRITE_SCOPE_END
+#endif
+}
+
+PxReal NpArticulationJointReducedCoordinate::getMaxJointVelocity(PxArticulationAxis::Enum axis) const
+{
+	NP_READ_CHECK(getNpScene());
+
+	return mCore.getMaxJointVelocity(axis);
 }
 
 void NpArticulationJointReducedCoordinate::setLimitParams(PxArticulationAxis::Enum axis, const PxArticulationLimit& pair)
@@ -256,6 +327,14 @@ void NpArticulationJointReducedCoordinate::setDriveParams(PxArticulationAxis::En
 
 	PX_CHECK_SCENE_API_WRITE_FORBIDDEN(getNpScene(), "PxArticulationJointReducedCoordinate::setDriveParams() not allowed while simulation is running. Call will be ignored.")
 
+	PX_CHECK_AND_RETURN(
+		drive.envelope.maxActuatorVelocity >= 0.0f &&
+		drive.envelope.maxEffort >= 0.0f &&
+		drive.envelope.velocityDependentResistance >= 0.0f &&
+		drive.envelope.speedEffortGradient >= 0.0f,
+		"All envelope parameters must be non-negative."
+	);
+	
 	scSetDrive(axis, drive);
 
 #if PX_SUPPORT_OMNI_PVD
@@ -274,6 +353,22 @@ void NpArticulationJointReducedCoordinate::setDriveParams(PxArticulationAxis::En
 	for (PxU32 ax = 0; ax < PxArticulationAxis::eCOUNT; ++ax)
 		maxforces[ax] = mCore.getDrive(static_cast<PxArticulationAxis::Enum>(ax)).maxForce;
 	OMNI_PVD_SET_ARRAY_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxArticulationJointReducedCoordinate, driveMaxForce, joint, maxforces, PxArticulationAxis::eCOUNT);
+	PxReal maxefforts[PxArticulationAxis::eCOUNT];
+	for (PxU32 ax = 0; ax < PxArticulationAxis::eCOUNT; ++ax)
+		maxefforts[ax] = mCore.getDrive(static_cast<PxArticulationAxis::Enum>(ax)).envelope.maxEffort;
+	OMNI_PVD_SET_ARRAY_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxArticulationJointReducedCoordinate, driveMaxEffort, joint, maxefforts, PxArticulationAxis::eCOUNT);
+	PxReal maxactuatorvelocities[PxArticulationAxis::eCOUNT];
+	for (PxU32 ax = 0; ax < PxArticulationAxis::eCOUNT; ++ax)
+		maxactuatorvelocities[ax] = mCore.getDrive(static_cast<PxArticulationAxis::Enum>(ax)).envelope.maxActuatorVelocity;
+	OMNI_PVD_SET_ARRAY_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxArticulationJointReducedCoordinate, driveMaxActuatorVelocity, joint, maxactuatorvelocities, PxArticulationAxis::eCOUNT);
+	PxReal velocitydependentresistances[PxArticulationAxis::eCOUNT];
+	for (PxU32 ax = 0; ax < PxArticulationAxis::eCOUNT; ++ax)
+		velocitydependentresistances[ax] = mCore.getDrive(static_cast<PxArticulationAxis::Enum>(ax)).envelope.velocityDependentResistance;
+	OMNI_PVD_SET_ARRAY_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxArticulationJointReducedCoordinate, driveVelocityDependentResistance, joint, velocitydependentresistances, PxArticulationAxis::eCOUNT);
+	PxReal speedeffortgradients[PxArticulationAxis::eCOUNT];
+	for (PxU32 ax = 0; ax < PxArticulationAxis::eCOUNT; ++ax)
+	speedeffortgradients[ax] = mCore.getDrive(static_cast<PxArticulationAxis::Enum>(ax)).envelope.speedEffortGradient;
+	OMNI_PVD_SET_ARRAY_EXPLICIT(pvdWriter, pvdRegData, OMNI_PVD_CONTEXT_HANDLE, PxArticulationJointReducedCoordinate, driveSpeedEffortGradient, joint, speedeffortgradients, PxArticulationAxis::eCOUNT);
 	PxArticulationDriveType::Enum drivetypes[PxArticulationAxis::eCOUNT];
 	for (PxU32 ax = 0; ax < PxArticulationAxis::eCOUNT; ++ax)
 		drivetypes[ax] = mCore.getDrive(static_cast<PxArticulationAxis::Enum>(ax)).driveType;
@@ -517,4 +612,20 @@ void NpArticulationJointReducedCoordinate::release()
 
 	PX_ASSERT(!isAPIWriteForbidden());
 	NpDestroyArticulationJoint(mCore.getRoot());
+}
+
+
+void NpArticulationJointReducedCoordinate::setName(const char* debugName)
+{
+	NP_WRITE_CHECK(getNpScene());
+	mName = debugName;
+#if PX_SUPPORT_OMNI_PVD
+	streamArticulationJointName(*this, mName);
+#endif
+}
+
+const char* NpArticulationJointReducedCoordinate::getName() const
+{
+	NP_READ_CHECK(getNpScene());
+	return mName;
 }

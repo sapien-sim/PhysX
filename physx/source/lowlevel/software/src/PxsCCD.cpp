@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -36,12 +36,13 @@
 #include "PxvGeometry.h"
 #include "PxvGlobals.h"
 #include "CmFlushPool.h"
-#include "DyThresholdTable.h"
+#include "DyContext.h"
 #include "GuCCDSweepConvexMesh.h"
 #include "GuBounds.h"
 #include "GuConvexMesh.h"
 #include "geometry/PxGeometryQuery.h"
 #include "PxsIslandSim.h"
+#include "PxcMaterialMethodImpl.h"
 
 // PT: this one currently makes these UTs fail
 // [  FAILED  ] CCDReportTest.CCD_soakTest_mesh
@@ -64,7 +65,7 @@ static const bool gUseGeometryQuery = false;
 #define CCD_ANGULAR_IMPULSE					0	// PT: this doesn't compile anymore
 
 using namespace physx;
-using namespace physx::Dy;
+using namespace Dy;
 using namespace Gu;
 
 static PX_FORCE_INLINE void verifyCCDPair(const PxsCCDPair& /*pair*/)
@@ -261,6 +262,13 @@ float physx::computeCCDThreshold(const PxGeometry& geometry)
 			return PxMin(PxMin(shape.halfExtents.x, shape.halfExtents.y), shape.halfExtents.z)*inSphereRatio;
 		}
 
+		case PxGeometryType::eCONVEXCORE:
+		{
+			const PxBounds3 bounds = Gu::computeBounds(geometry, PxTransform(PxIdentity));
+			const PxVec3 halfExtents = bounds.getDimensions() * 0.5f;
+			return PxMin(PxMin(halfExtents.x, halfExtents.y), halfExtents.z) * inSphereRatio;
+		}
+
 		case PxGeometryType::eCONVEXMESH:
 		{
 			const PxConvexMeshGeometry& shape = static_cast<const PxConvexMeshGeometry&>(geometry);
@@ -272,7 +280,6 @@ float physx::computeCCDThreshold(const PxGeometry& geometry)
 		case PxGeometryType::eHEIGHTFIELD:		{ return 0.0f;	}
 		case PxGeometryType::eTETRAHEDRONMESH:	{ return 0.0f;	}
 		case PxGeometryType::ePARTICLESYSTEM:	{ return 0.0f;	}
-		case PxGeometryType::eHAIRSYSTEM:		{ return 0.0f;	}
 		case PxGeometryType::eCUSTOM:			{ return 0.0f;	}
 
 		default:
@@ -340,11 +347,12 @@ static void getLastCCDAbsPose(PxTransform32& out, const PxsCCDShape* ccdShape, c
 	trInvTr(out, atom->getLastCCDTransform(), atom->getCore().getBody2Actor(), ccdShape->mShapeCore->getTransform());
 }
 
-PxsCCDContext::PxsCCDContext(PxsContext* context, Dy::ThresholdStream& thresholdStream, PxvNphaseImplementationContext& nPhaseContext, PxReal ccdThreshold) :
+PxsCCDContext::PxsCCDContext(PxsContext* context, Dy::ThresholdStream& thresholdStream, PxvNphaseImplementationContext& nPhaseContext, PxReal ccdThreshold, bool gpu) :
 	mPostCCDSweepTask		(context->getContextId(), this, "PxsContext.postCCDSweep"),
 	mPostCCDAdvanceTask		(context->getContextId(), this, "PxsContext.postCCDAdvance"),
 	mPostCCDDepenetrateTask	(context->getContextId(), this, "PxsContext.postCCDDepenetrate"),
 	mDisableCCDResweep		(false),
+	mGPU					(gpu),
 	miCCDPass				(0),
 	mSweepTotalHits			(0),
 	mCCDThreadContext		(NULL),
@@ -709,7 +717,7 @@ bool PxsCCDPair::sweepAdvanceToToi(PxReal dt, bool clipTrajectoryToToi)
 
 		//Work out velocity and invMass for body 1
 		if(atom1)
-		{		
+		{
 			//Put contact point in local space, then find how much point is moving using point velocity...
 #if CCD_ANGULAR_IMPULSE			
 			localPoint1 = mMinToiPoint - trB.p;
@@ -935,7 +943,7 @@ public:
 	{
 	}
 
-	virtual void runInternal()
+	virtual void runInternal() PX_OVERRIDE
 	{
 		for (PxU32 j = 0; j < mNumPairs; j++)
 		{
@@ -945,7 +953,7 @@ public:
 		}
 	}
 
-	virtual const char *getName() const
+	virtual const char *getName() const PX_OVERRIDE
 	{
 		return "PxsContext.CCDSweep";
 	}
@@ -997,7 +1005,7 @@ public:
 		PX_ASSERT(mFirstIslandPair < mNumPairs);
 	}
 
-	virtual void runInternal()
+	virtual void runInternal() PX_OVERRIDE
 	{
 		PxI32 sweepTotalHits = 0;
 
@@ -1167,7 +1175,7 @@ public:
 					if(pair.mMinToi > 0.0f)
 					{
 						for(PxU32 a = islandStartIndex; a < islandEndIndex; ++a)
-						{	
+						{
 							if(!mIslandBodies[a]->mPassDone)
 							{
 								//If the body has not updated, we advance it to the current time-step that the island has reached.
@@ -1264,7 +1272,7 @@ public:
 		mContext->putNpThreadContext(threadContext);
 	}
 
-	virtual const char *getName() const
+	virtual const char *getName() const PX_OVERRIDE
 	{
 		return "PxsContext.CCDAdvance";
 	}
@@ -1323,18 +1331,32 @@ void PxsCCDContext::updateCCDEnd()
 		// so that the next frame we know which ones need to be newly paired with PxsCCDBody objects
 		// also free the CCDBody memory blocks
 
-		mMutex.lock();
-		for (PxU32 j = 0, n = mCCDBodies.size(); j < n; j++)
+		// PT: see CL 20888255 for the introduction of the mutex & mUpdatedCCDBodies array. This is only needed for the GPU version.
+#if PX_SUPPORT_GPU_PHYSX
+		if(mGPU)
 		{
-			if (mCCDBodies[j].mBody->mCCD && mCCDBodies[j].mBody->mCCD->mHasAnyPassDone)
+			mMutex.lock();
+			for (PxU32 j = 0, n = mCCDBodies.size(); j < n; j++)
 			{
-				//Record this body in the list of bodies that were updated
-				mUpdatedCCDBodies.pushBack(mCCDBodies[j].mBody);
+				if (mCCDBodies[j].mBody->mCCD && mCCDBodies[j].mBody->mCCD->mHasAnyPassDone)
+				{
+					//Record this body in the list of bodies that were updated
+					mUpdatedCCDBodies.pushBack(mCCDBodies[j].mBody);
+				}
+				mCCDBodies[j].mBody->mCCD = NULL;
+				mCCDBodies[j].mBody->getCore().isFastMoving = false; //Clear the "isFastMoving" bool
 			}
-			mCCDBodies[j].mBody->mCCD = NULL;
-			mCCDBodies[j].mBody->getCore().isFastMoving = false; //Clear the "isFastMoving" bool
+			mMutex.unlock();
 		}
-		mMutex.unlock();
+		else
+#endif
+		{
+			for (PxU32 j = 0, n = mCCDBodies.size(); j < n; j++)
+			{
+				mCCDBodies[j].mBody->mCCD = NULL;
+				mCCDBodies[j].mBody->getCore().isFastMoving = false; //Clear the "isFastMoving" bool
+			}
+		}
 
 		mCCDBodies.clear_NoDelete();
 	}
@@ -1448,8 +1470,8 @@ static PxsCCDShape* processShape(
 		ccdShape->mPrevTransform = oldTm;
 		ccdShape->mCurrentTransform = tm;
 		ccdShape->mUpdateCount = 0;
-		ccdShape->mNodeIndex = flag ? islandSim.getNodeIndex2(cm->getWorkUnit().mEdgeIndex)
-									: islandSim.getNodeIndex1(cm->getWorkUnit().mEdgeIndex);
+		ccdShape->mNodeIndex = flag ? islandSim.mCpuData.getNodeIndex2(cm->getWorkUnit().mEdgeIndex)
+									: islandSim.mCpuData.getNodeIndex1(cm->getWorkUnit().mEdgeIndex);
 	}
 	else
 	{
@@ -1499,8 +1521,9 @@ void PxsCCDContext::updateCCD(PxReal dt, PxBaseTask* continuation, IG::IslandSim
 	mCCDPairs.clear_NoDelete();
 	mCCDPtrPairs.forceSize_Unsafe(0);
 
+#if PX_SUPPORT_GPU_PHYSX
 	mUpdatedCCDBodies.forceSize_Unsafe(0);
-
+#endif
 	mCCDOverlaps.clear_NoDelete();
 
 	PxU32 nbKinematicStaticCollisions = 0;
@@ -1523,11 +1546,11 @@ void PxsCCDContext::updateCCD(PxReal dt, PxBaseTask* continuation, IG::IslandSim
 			const PxsRigidCore* rc1 = unit.mRigidCore1;
 			
 			{
-				const PxsShapeCore* sc0 = unit.mShapeCore0;
-				const PxsShapeCore* sc1 = unit.mShapeCore1;
+				const PxsShapeCore* sc0 = unit.getShapeCore0();
+				const PxsShapeCore* sc1 = unit.getShapeCore1();
 
-				PxsRigidBody* ba0 = cm->mRigidBody0;
-				PxsRigidBody* ba1 = cm->mRigidBody1;
+				PxsRigidBody* ba0 = cm->getRigidBody0();
+				PxsRigidBody* ba1 = cm->getRigidBody1();
 
 				//Look up the body/shape pair in our CCDShape map
 				const PxPair<const PxsRigidShapePair, PxsCCDShape*>* ccdShapePair0 = mMap.find(PxsRigidShapePair(rc0, sc0));
@@ -1596,6 +1619,8 @@ void PxsCCDContext::updateCCD(PxReal dt, PxBaseTask* continuation, IG::IslandSim
 				if (ba0->isKinematic() && (ba1 == NULL || ba1->isKinematic()))
 					nbKinematicStaticCollisions++;
 				{
+					const PxcNpWorkUnit& npUnit = cm->getWorkUnit();
+
 					PxsCCDPair& p = mCCDPairs.pushBack();
 					p.mBa0 = ba0;
 					p.mBa1 = ba1;
@@ -1603,8 +1628,8 @@ void PxsCCDContext::updateCCD(PxReal dt, PxBaseTask* continuation, IG::IslandSim
 					p.mCCDShape1 = ccdShape1;
 					p.mHasFriction = rc0->hasCCDFriction() || rc1->hasCCDFriction();
 					p.mMinToi = PX_MAX_REAL;
-					p.mG0 = cm->mNpUnit.mShapeCore0->mGeometry.getType();
-					p.mG1 = cm->mNpUnit.mShapeCore1->mGeometry.getType();
+					p.mG0 = npUnit.getGeomType0();
+					p.mG1 = npUnit.getGeomType1();
 					p.mCm = cm;
 					p.mIslandId = 0xFFFFffff;
 					p.mIsEarliestToiHit = false;
@@ -1855,7 +1880,7 @@ static PX_FORCE_INLINE bool shouldCreateContactReports(const PxsRigidCore* rigid
 }
 
 void PxsCCDContext::postCCDAdvance(PxBaseTask* /*continuation*/)
-{	
+{
 	// --------------------------------------------------------------------------------------
 	// contact notifications: update touch status (multi-threading this section would probably slow it down but might be worth a try)
 	PxU32 countLost = 0, countFound = 0, countRetouch = 0;
@@ -1868,7 +1893,7 @@ void PxsCCDContext::postCCDAdvance(PxBaseTask* /*continuation*/)
 		PxU32 islandEnd = mCCDIslandHistogram[island] + index;
 		for(PxU32 j = index; j < islandEnd; ++j)
 		{
-			PxsCCDPair& p = *mCCDPtrPairs[j];
+			const PxsCCDPair& p = *mCCDPtrPairs[j];
 			//The CCD pairs are ordered by TOI. If we reach a TOI > 1, we can terminate
 			if(p.mMinToi > 1.f)
 				break;
@@ -1879,12 +1904,14 @@ void PxsCCDContext::postCCDAdvance(PxBaseTask* /*continuation*/)
 				//Flag that we had a CCD contact
 				p.mCm->setHadCCDContact();
 
+				PxcNpWorkUnit& npUnit = p.mCm->getWorkUnit();
+
 				//Test/set the changed touch map
 				PxU16 oldTouch = p.mCm->getTouchStatus();
 				if (!oldTouch)
 				{
 					mContext->mContactManagerTouchEvent.growAndSet(p.mCm->getIndex());
-					p.mCm->mNpUnit.mStatusFlags = PxU16((p.mCm->mNpUnit.mStatusFlags & (~PxcNpWorkUnitStatusFlag::eHAS_NO_TOUCH)) | PxcNpWorkUnitStatusFlag::eHAS_TOUCH);
+					npUnit.mStatusFlags = PxU16((npUnit.mStatusFlags & (~PxcNpWorkUnitStatusFlag::eHAS_NO_TOUCH)) | PxcNpWorkUnitStatusFlag::eHAS_TOUCH);
 					//Also need to write it in the CmOutput structure!!!!!
 
 					////The achieve this, we need to unregister the CM from the Nphase, then re-register it with the status set. This is the only way to force a push to the GPU
@@ -1902,10 +1929,10 @@ void PxsCCDContext::postCCDAdvance(PxBaseTask* /*continuation*/)
 
 				//Do we want to create reports?
 				const bool createReports =
-					p.mCm->mNpUnit.mFlags & PxcNpWorkUnitFlag::eOUTPUT_CONTACTS
-					|| (p.mCm->mNpUnit.mFlags & PxcNpWorkUnitFlag::eFORCE_THRESHOLD
-						&& ((p.mCm->mNpUnit.mFlags & (PxcNpWorkUnitFlag::eDYNAMIC_BODY0 | PxcNpWorkUnitFlag::eARTICULATION_BODY0) && shouldCreateContactReports(p.mCm->mNpUnit.mRigidCore0))
-					|| (p.mCm->mNpUnit.mFlags & (PxcNpWorkUnitFlag::eDYNAMIC_BODY1 | PxcNpWorkUnitFlag::eARTICULATION_BODY1)  && shouldCreateContactReports(p.mCm->mNpUnit.mRigidCore1))));
+					npUnit.mFlags & PxcNpWorkUnitFlag::eOUTPUT_CONTACTS
+					|| (npUnit.mFlags & PxcNpWorkUnitFlag::eFORCE_THRESHOLD
+						&& ((npUnit.mFlags & (PxcNpWorkUnitFlag::eDYNAMIC_BODY0 | PxcNpWorkUnitFlag::eARTICULATION_BODY0) && shouldCreateContactReports(npUnit.mRigidCore0))
+					|| (npUnit.mFlags & (PxcNpWorkUnitFlag::eDYNAMIC_BODY1 | PxcNpWorkUnitFlag::eARTICULATION_BODY1)  && shouldCreateContactReports(npUnit.mRigidCore1))));
 
 				if(createReports)
 				{
@@ -1938,18 +1965,18 @@ void PxsCCDContext::postCCDAdvance(PxBaseTask* /*continuation*/)
 					PxU16 contactCount;
 					PxU8 nbPatches;
 					PxU8* unusedU8Ptr = NULL;
-					PxsCCDContactHeader* ccdHeader = reinterpret_cast<PxsCCDContactHeader*>(p.mCm->mNpUnit.mCCDContacts);
+					PxsCCDContactHeader* ccdHeader = reinterpret_cast<PxsCCDContactHeader*>(npUnit.mCCDContacts);
 					if (writeCompressedContact(buffer.contacts, numContacts, mCCDThreadContext, contactCount, contactPatches,
 						contactPoints, contactStreamSize, contactForces, numContacts*sizeof(PxReal), unusedU8Ptr, NULL, mCCDThreadContext->mMaterialManager,
-												((p.mCm->mNpUnit.mFlags & PxcNpWorkUnitFlag::eMODIFIABLE_CONTACT) != 0), true, &matInfo, nbPatches, sizeof(PxsCCDContactHeader),NULL, NULL,
+												((npUnit.mFlags & PxcNpWorkUnitFlag::eMODIFIABLE_CONTACT) != 0), true, &matInfo, nbPatches, sizeof(PxsCCDContactHeader),NULL, NULL,
 												false, NULL, NULL, NULL, p.mFaceIndex != PXC_CONTACT_NO_FACE_INDEX))
 					{
 						PxsCCDContactHeader* newCCDHeader = reinterpret_cast<PxsCCDContactHeader*>(contactPatches);
 						newCCDHeader->contactStreamSize = PxTo16(contactStreamSize);
 						newCCDHeader->isFromPreviousPass = 0;
 
-						p.mCm->mNpUnit.mCCDContacts = contactPatches;	// put the latest stream at the head of the linked list since it needs to get accessed every CCD pass
-																		// to prepare the reports
+						npUnit.mCCDContacts = contactPatches;	// put the latest stream at the head of the linked list since it needs to get accessed every CCD pass
+																// to prepare the reports
 
 						if (!ccdHeader)
 							newCCDHeader->nextStream = NULL;
@@ -1965,7 +1992,7 @@ void PxsCCDContext::postCCDAdvance(PxBaseTask* /*continuation*/)
 					}
 					else if (!ccdHeader)
 					{
-						p.mCm->mNpUnit.mCCDContacts = NULL;
+						npUnit.mCCDContacts = NULL;
 						// we do not set the status flag on failure because the pair might have written
 						// a contact stream sucessfully during discrete collision this frame.
 					}
@@ -1973,7 +2000,7 @@ void PxsCCDContext::postCCDAdvance(PxBaseTask* /*continuation*/)
 						ccdHeader->isFromPreviousPass = 1;
 
 					//If the touch event already existed, the solver would have already configured the threshold stream
-					if((p.mCm->mNpUnit.mFlags & (PxcNpWorkUnitFlag::eARTICULATION_BODY0 | PxcNpWorkUnitFlag::eARTICULATION_BODY1)) == 0 && p.mAppliedForce)
+					if((npUnit.mFlags & (PxcNpWorkUnitFlag::eARTICULATION_BODY0 | PxcNpWorkUnitFlag::eARTICULATION_BODY1)) == 0 && p.mAppliedForce)
 					{
 #if 1
 						ThresholdStreamElement elt;
@@ -1982,7 +2009,7 @@ void PxsCCDContext::postCCDAdvance(PxBaseTask* /*continuation*/)
 						elt.threshold = PxMin<float>(p.mBa0 == NULL ? PX_MAX_REAL : p.mBa0->mCore->contactReportThreshold, p.mBa1 == NULL ? PX_MAX_REAL : 
 							p.mBa1->mCore->contactReportThreshold);
 						elt.nodeIndexA = p.mCCDShape0->mNodeIndex;
-						elt.nodeIndexB =p.mCCDShape1->mNodeIndex;
+						elt.nodeIndexB = p.mCCDShape1->mNodeIndex;
 						PxOrder(elt.nodeIndexA,elt.nodeIndexB);
 						PX_ASSERT(elt.nodeIndexA.index() < elt.nodeIndexB.index());
 						mThresholdStream.pushBack(elt);
@@ -2027,18 +2054,6 @@ Cm::SpatialVector PxsRigidBody::getPreSolverVelocities() const
 		return mCCD->mPreSolverVelocity;
 	return Cm::SpatialVector(PxVec3(0.0f), PxVec3(0.0f));
 }
-
-/*PxTransform PxsRigidBody::getAdvancedTransform(PxReal toi) const
-{
-	//If it is kinematic, just return identity. We don't fully support kinematics yet
-	if (isKinematic())
-		return PxTransform(PxIdentity);
-
-	//Otherwise we interpolate the pose between the current and previous pose and return that pose
-	PxVec3 newLastP = mLastTransform.p*(1.0f-toi) + mCore->body2World.p*toi; // advance mLastTransform position to toi
-	PxQuat newLastQ = slerp(toi, getLastCCDTransform().q, mCore->body2World.q); // advance mLastTransform rotation to toi
-	return PxTransform(newLastP, newLastQ);
-}*/
 
 void PxsRigidBody::advancePrevPoseToToi(PxReal toi)
 {
@@ -2096,26 +2111,18 @@ void PxsCCDContext::runCCDModifiableContact(PxModifiableContact* PX_RESTRICT con
 	if(!mCCDContactModifyCallback)
 		return;
 
-	class PxcContactSet: public PxContactSet
+	class PxcContactSet : public PxContactSet
 	{
 	public:
-		PxcContactSet(PxU32 count, PxModifiableContact* contacts_)
+		PxcContactSet(PxU32 count, PxModifiableContact* contacts)
 		{
-			mContacts = contacts_;
+			mContacts = contacts;
 			mCount = count;
 		}
 	};
 	{
 		PxContactModifyPair p;
-
-		p.shape[0] = gPxvOffsetTable.convertPxsShape2Px(shapeCore0);
-		p.shape[1] = gPxvOffsetTable.convertPxsShape2Px(shapeCore1);
-
-		p.actor[0] = rigid0 != NULL ? gPxvOffsetTable.convertPxsRigidCore2PxRigidBody(rigidCore0) 
-									: gPxvOffsetTable.convertPxsRigidCore2PxRigidStatic(rigidCore0);
-
-		p.actor[1] = rigid1 != NULL ? gPxvOffsetTable.convertPxsRigidCore2PxRigidBody(rigidCore1) 
-									: gPxvOffsetTable.convertPxsRigidCore2PxRigidStatic(rigidCore1);
+		gPxvOffsetTable.fillPairPointers(p,	shapeCore0, shapeCore1, rigidCore0, rigidCore1, rigid0 != NULL, rigid1 != NULL);
 
 		getShapeAbsPose(p.transform[0], shapeCore0, rigidCore0, rigid0);
 		getShapeAbsPose(p.transform[1], shapeCore1, rigidCore1, rigid1);
@@ -2123,7 +2130,11 @@ void PxsCCDContext::runCCDModifiableContact(PxModifiableContact* PX_RESTRICT con
 		static_cast<PxcContactSet&>(p.contacts) = 
 			PxcContactSet(contactCount, contacts);
 
-		mCCDContactModifyCallback->onCCDContactModify(&p, 1);
+		{
+			// PT: TODO: could we change the code so that we call this only once for all pairs?
+			PX_PROFILE_ZONE("USERCODE - PxCCDContactModifyCallback::onCCDContactModify", mContext->mContextID);
+			mCCDContactModifyCallback->onCCDContactModify(&p, 1);
+		}
 	}
 }
 

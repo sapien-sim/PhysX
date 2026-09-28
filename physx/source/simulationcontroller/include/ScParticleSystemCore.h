@@ -22,7 +22,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+// Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 // Copyright (c) 2004-2008 AGEIA Technologies, Inc. All rights reserved.
 // Copyright (c) 2001-2004 NovodeX AG. All rights reserved.  
 
@@ -51,7 +51,6 @@ namespace physx
 			// PX_SERIALIZATION
 		public:
 			ParticleSystemCore(const PxEMPTY) : ActorCore(PxEmpty) {}
-			static		void			getBinaryMetaData(PxOutputStream& stream);
 			//~PX_SERIALIZATION
 			ParticleSystemCore(PxActorType::Enum actorType);
 			~ParticleSystemCore();
@@ -125,14 +124,8 @@ namespace physx
 
 			PxVec3						getWind() const { return mShapeCore.getLLCore().mWind; }
 
-#if PX_ENABLE_FEATURES_UNDER_CONSTRUCTION
 			PxSparseGridParams			getSparseGridParams() const { return mShapeCore.getLLCore().sparseGridParams; }
 			void						setSparseGridParams(const PxSparseGridParams& params) { mShapeCore.getLLCore().sparseGridParams = params; }
-#endif
-			
-			void						addRigidAttachment(Sc::BodyCore* core);
-
-			void						removeRigidAttachment(Sc::BodyCore* core);
 
 			//---------------------------------------------------------------------------------
 			// Internal API

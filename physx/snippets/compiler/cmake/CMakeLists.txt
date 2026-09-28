@@ -22,9 +22,9 @@
 ## (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 ## OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ##
-## Copyright (c) 2008-2024 NVIDIA Corporation. All rights reserved.
+## Copyright (c) 2008-2026 NVIDIA Corporation. All rights reserved.
 
-cmake_minimum_required(VERSION 3.7)
+cmake_minimum_required(VERSION 3.21)
 project(Snippets C CXX)
 
 # This is required to be defined by external callers!
@@ -69,7 +69,7 @@ SET(SOURCE_DISTRO_FILE_LIST "")
 # Include all of the projects
 SET(SNIPPETS_LIST ArticulationRC BVHStructure CCD ContactModification ContactReport ContactReportCCD ConvexMeshCreate
 	CustomJoint CustomProfiler DeformableMesh FrustumQuery GearJoint GeometryQuery Gyroscopic HelloWorld ImmediateArticulation ImmediateMode Joint JointDrive MassProperties
-	MBP MimicJoint MultiPruners MultiThreading OmniPvd PathTracing PointDistanceQuery PrunerSerialization QuerySystemAllQueries QuerySystemCustomCompound RackJoint Serialization SplitFetchResults
+	MBP MimicJoint MultiPruners MultiThreading OmniPvd PathTracing PointDistanceQuery ProfilerConverter PrunerSerialization QuerySystemAllQueries QuerySystemCustomCompound RackJoint Serialization SplitFetchResults
 	SplitSim StandaloneBVH StandaloneBroadphase StandaloneQuerySystem Stepper ToleranceScale TriangleMeshCreate Triggers CustomGeometry CustomConvex CustomGeometryCollision CustomGeometryQueries FixedTendon SpatialTendon)
 LIST(APPEND SNIPPETS_LIST ${PLATFORM_SNIPPETS_LIST})
 
@@ -77,22 +77,17 @@ LIST(APPEND SNIPPETS_LIST ${PLATFORM_SNIPPETS_LIST})
 # These are separate because we don't ship CUDA in the public release yet.
 # To be changed if we decide otherwise.
 SET(GPU_SNIPPET_LIST
-	HelloGRB SoftBody SoftBodyAttachment KinematicSoftBody SDF PBF PBFMultiMat PBDCloth PBDInflatable Isosurface
+	HelloGRB DeformableSurface DeformableVolume DeformableVolumeAttachment DeformableVolumeKinematic DeformableSurfaceSkinning DeformableVolumeSkinning SDF PBF PBFMultiMat Isosurface
 	RBDirectGPUAPI DirectGPUAPIArticulation)
 
-# Add snippets of GPU features that are under development
-IF(NOT PUBLIC_RELEASE AND NOT PX_GENERATE_SOURCE_DISTRO)
-	LIST(APPEND GPU_SNIPPET_LIST
-		BigHairSystem FEMCloth HairSystem)
-ENDIF()
-
 #TODO, create a propper define for whether GPU features are enabled or not!
-IF ((PUBLIC_RELEASE OR PX_GENERATE_GPU_PROJECTS) AND (NOT CMAKE_CROSSCOMPILING OR NOT (CMAKE_GENERATOR_PLATFORM STREQUAL "NX64")))
+IF (PX_GENERATE_GPU_PROJECTS AND 
+    (NOT (CMAKE_CROSSCOMPILING OR CMAKE_GENERATOR_PLATFORM STREQUAL "NX64")))
     LIST(APPEND SNIPPETS_LIST ${GPU_SNIPPET_LIST})
 ENDIF()
 	
-SET(SNIPPETS_VEHICLE2_LIST Vehicle2DirectDrive Vehicle2FourWheelDrive Vehicle2TankDrive Vehicle2CustomSuspension Vehicle2Multithreading Vehicle2Truck Vehicle2CustomTire)
-LIST(APPEND SNIPPETS_VEHICLE2_LIST ${PLATFORM_SNIPPETS_VEHICLE2_LIST})
+SET(SNIPPETS_VEHICLE_LIST VehicleDirectDrive VehicleFourWheelDrive VehicleTankDrive VehicleCustomSuspension VehicleMultithreading VehicleTruck VehicleCustomTire)
+LIST(APPEND SNIPPETS_VEHICLE_LIST ${PLATFORM_SNIPPETS_VEHICLE_LIST})
 	
 IF(SNIPPET_RENDER_ENABLED)
 	INCLUDE(SnippetRender.cmake)
@@ -102,20 +97,36 @@ ENDIF()
 INCLUDE(SnippetUtils.cmake)
 SET_PROPERTY(TARGET SnippetUtils PROPERTY FOLDER "Snippets/Libraries only")
 
+# SnippetOmniPvd is non-functional in release (PX_SUPPORT_OMNI_PVD=0), producing a
+# stub binary. Exclude it from release builds in two parts:
+# Part 1: Single-config generators (Ninja, Make) - remove from list before the loop.
+# Part 2: Multi-config generators (Visual Studio) - see below after the FOREACH.
+IF(NOT CMAKE_CONFIGURATION_TYPES)
+	STRING(TOLOWER "${CMAKE_BUILD_TYPE}" _BUILD_TYPE_LOWER)
+	IF(_BUILD_TYPE_LOWER STREQUAL "release")
+		LIST(REMOVE_ITEM SNIPPETS_LIST OmniPvd)
+	ENDIF()
+ENDIF()
+
 # Compile snippets
 FOREACH(SNIPPET_NAME ${SNIPPETS_LIST})
 	INCLUDE(SnippetTemplate.cmake)
 	SET_PROPERTY(TARGET Snippet${SNIPPET_NAME} PROPERTY FOLDER "Snippets")
 ENDFOREACH()
 
-# Compile vehicle2 snippets
-FOREACH(SNIPPET_NAME ${SNIPPETS_VEHICLE2_LIST})
-	INCLUDE(SnippetVehicle2Template.cmake)
+# Part 2: Multi-config generators (Visual Studio) - exclude SnippetOmniPvd from Release.
+IF(CMAKE_CONFIGURATION_TYPES AND TARGET SnippetOmniPvd)
+	SET_TARGET_PROPERTIES(SnippetOmniPvd PROPERTIES EXCLUDE_FROM_DEFAULT_BUILD_RELEASE TRUE)
+ENDIF()
+
+# Compile vehicle snippets
+FOREACH(SNIPPET_NAME ${SNIPPETS_VEHICLE_LIST})
+	INCLUDE(SnippetVehicleTemplate.cmake)
 	SET_PROPERTY(TARGET Snippet${SNIPPET_NAME} PROPERTY FOLDER "Snippets")
 ENDFOREACH()
 
 # For internal builds, make sure the GPU lib is built (but not linked!) before GPU snippets
-IF (NOT PUBLIC_RELEASE AND (PX_GENERATE_GPU_PROJECTS OR PX_GENERATE_GPU_PROJECTS_ONLY))
+IF (PX_GENERATE_GPU_PROJECTS OR PX_GENERATE_GPU_PROJECTS_ONLY)
 	FOREACH(SNIPPET_NAME ${GPU_SNIPPET_LIST})
 		ADD_DEPENDENCIES(Snippet${SNIPPET_NAME} PhysXGpu)
 	ENDFOREACH()
