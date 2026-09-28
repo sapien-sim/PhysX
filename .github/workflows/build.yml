@@ -15,7 +15,7 @@ on:
 jobs:
   linux:
     runs-on: ubuntu-22.04
-    timeout-minutes: 150
+    timeout-minutes: 240
     container: nvidia/cuda:12.8.1-devel-ubuntu22.04
     steps:
       - name: Install build tools
@@ -52,11 +52,11 @@ jobs:
 
   windows:
     runs-on: windows-2022
-    timeout-minutes: 180
+    timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
       - name: Install CUDA toolkit
-        uses: Jimver/cuda-toolkit@v1.2
+        uses: Jimver/cuda-toolkit@v1
         with:
           method: network
           cuda: 12.8.0
