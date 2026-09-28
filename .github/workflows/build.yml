@@ -1,0 +1,137 @@
+name: Build PhysX Artifacts
+
+# Builds the precompiled SDK zips SAPIEN consumes, for linux (x86_64, with the
+# CUDA GPU library), windows (with the CUDA GPU dll), and macOS (universal,
+# CPU-only). Zips are uploaded as workflow artifacts for every run, and
+# attached to a GitHub release when the run was triggered by pushing a
+# `<release>-physx-<version>.patch<N>` tag.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "*-physx-*.patch*"
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    container: nvidia/cuda:12.8.1-devel-ubuntu22.04
+    steps:
+      - name: Install build tools
+        run: |
+          apt-get update -qq
+          apt-get install -y -qq --no-install-recommends clang make git python3 zip
+      - uses: actions/checkout@v4
+      - name: Patch presets
+        run: |
+          sed -i 's/name="PX_BUILDSNIPPETS" value="True"/name="PX_BUILDSNIPPETS" value="False"/g; s/name="PX_BUILDPVDRUNTIME" value="True"/name="PX_BUILDPVDRUNTIME" value="False"/g' physx/buildtools/presets/public/linux-clang.xml
+          sed -i 's/-Werror//g' physx/source/compiler/cmake/linux/CMakeLists.txt
+      - name: Generate projects
+        run: ./physx/generate_projects.sh linux-clang
+      - name: Build release
+        run: cmake --build physx/compiler/linux-clang-release -- -j"$(nproc)"
+      - name: Build checked
+        run: cmake --build physx/compiler/linux-clang-checked -- -j"$(nproc)"
+      - name: Package
+        run: |
+          python3 ci/package.py --physx-root physx --platform linux --config release --dist dist
+          python3 ci/package.py --physx-root physx --platform linux --config checked --dist dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-release
+          path: dist/linux-release.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-checked
+          path: dist/linux-checked.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-so
+          path: dist/linux-so.zip
+
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install CUDA toolkit
+        uses: Jimver/cuda-toolkit@v1.2
+        with:
+          method: network
+          cuda: 12.8.0
+      - name: Patch presets
+        shell: bash
+        run: |
+          sed -i 's/name="PX_BUILDSNIPPETS" value="True"/name="PX_BUILDSNIPPETS" value="False"/g; s/name="PX_BUILDPVDRUNTIME" value="True"/name="PX_BUILDPVDRUNTIME" value="False"/g; s/name="PX_GENERATE_STATIC_LIBRARIES" value="False"/name="PX_GENERATE_STATIC_LIBRARIES" value="True"/g' physx/buildtools/presets/public/vc17win64.xml
+      - name: Generate projects
+        shell: cmd
+        run: cd physx && generate_projects.bat vc17win64
+      - name: Build release
+        shell: bash
+        run: |
+          dir=physx/compiler/vc17win64-release
+          [ -d "$dir" ] || dir=physx/compiler/vc17win64
+          cmake --build "$dir" --config Release -- -m
+      - name: Package
+        shell: bash
+        run: python ci/package.py --physx-root physx --platform windows --config release --dist dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: dist/windows-release.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-dll
+          path: dist/windows-dll.zip
+
+  macos:
+    runs-on: macos-14
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure (universal arm64 + x86_64)
+        run: |
+          cmake -S physx/source/compiler/cmake -B build-mac \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DPX_OUTPUT_ARCH=x86 \
+            -DPX_OUTPUT_BIN_DIR="$PWD/physx" \
+            -DPX_OUTPUT_LIB_DIR="$PWD/physx" \
+            -DPX_GENERATE_STATIC_LIBRARIES=TRUE \
+            -DPX_BUILDSNIPPETS=FALSE \
+            -DPX_BUILDPVDRUNTIME=FALSE \
+            -DPX_GENERATE_GPU_PROJECTS=FALSE
+      - name: Build release
+        run: cmake --build build-mac -j"$(sysctl -n hw.ncpu)"
+      - name: Package
+        run: python3 ci/package.py --physx-root physx --platform macos --config release --dist dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macOS-universal-release
+          path: dist/macOS-universal-release.zip
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [linux, windows, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            dist/linux-release.zip dist/linux-checked.zip dist/linux-so.zip \
+            dist/windows-release.zip dist/windows-dll.zip \
+            dist/macOS-universal-release.zip \
+            --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" \
+            --notes "Precompiled PhysX SDK 5.9.0 (release 110.1) for SAPIEN."
