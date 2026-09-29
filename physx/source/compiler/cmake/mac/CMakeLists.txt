@@ -109,7 +109,7 @@ IF(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64")
 	# tree-vrp and delete-null-pointer-checks cause known bugs on some versions of gcc
 	IF ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 		SET(AARCH64_FLAGS "-ffp-contract=off -fno-delete-null-pointer-checks -faligned-new")
-	ELSEIF ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+	ELSEIF ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 		SET(AARCH64_FLAGS "-ffp-contract=off -Wno-unsupported-floating-point-opt")
 	ENDIF()
 ELSE()
@@ -118,7 +118,7 @@ ENDIF()
 
 SET(COMMON_CXX_FLAGS "-std=c++14  -fno-rtti -fno-exceptions -ffunction-sections -fdata-sections -fvisibility=hidden ${AARCH64_FLAGS}")
 
-IF ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+IF ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
 	IF ("${CMAKE_CXX_COMPILER_VERSION}" VERSION_LESS "10.0.0")
 		SET(PHYSX_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMMON_CXX_FLAGS} -fstrict-aliasing -Wstrict-aliasing=2 -Wno-shadow ${CLANG_WARNINGS}" CACHE INTERNAL "PhysX CXX")
 	ELSE()
