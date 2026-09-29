@@ -95,7 +95,7 @@ def main():
     for lib in libs:
         print(f"  {arc_dir}/{lib.name}")
 
-    if args.config == "release":
+    if args.config == "release" and args.platform in GPU_LIB:
         gpu_name = GPU_LIB[args.platform]
         candidates = [c for c in _lib_files(root, gpu_name) if c.is_file()]
         gpu = next((c for c in candidates if c.parent.name == "release"), None)
