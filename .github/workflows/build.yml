@@ -47,14 +47,17 @@ jobs:
         with:
           name: linux-release
           path: dist/linux-release.zip
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
           name: linux-checked
           path: dist/linux-checked.zip
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
           name: linux-so
           path: dist/linux-so.zip
+          if-no-files-found: error
 
   windows:
     runs-on: windows-2022
@@ -77,15 +80,22 @@ jobs:
         run: cmake --build build --config Release -- -m
       - name: Package
         shell: bash
-        run: python ci/package.py --physx-root physx --platform windows --config release --dist dist
+        run: |
+          python ci/package.py --physx-root physx --platform windows --config release --dist dist
+          echo "== dlls under physx/ =="
+          find physx -name "*.dll" | head -20
+          echo "== dlls under build/ =="
+          find build -name "*.dll" | head -20
       - uses: actions/upload-artifact@v4
         with:
           name: windows-release
           path: dist/windows-release.zip
+          if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
           name: windows-dll
           path: dist/windows-dll.zip
+          if-no-files-found: error
 
   macos:
     runs-on: macos-14
@@ -107,6 +117,7 @@ jobs:
         with:
           name: macOS-universal-release
           path: dist/macOS-universal-release.zip
+          if-no-files-found: error
 
   release:
     if: startsWith(github.ref, 'refs/tags/')
