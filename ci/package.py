@@ -38,8 +38,15 @@ GPU_LIB = {
 INTERMEDIATE_LIB_PATTERNS = ("*Gpu_static_64", "*CudaContextManager_static_64")
 
 
+def _lib_files(physx_root: Path, pattern: str):
+    # the packman-generated layout puts outputs under physx/bin/... while the
+    # standalone CMake entry puts them under physx/lib/bin/... — scan both
+    for base in (physx_root, physx_root / "lib"):
+        yield from base.glob(f"bin/**/{pattern}")
+
+
 def find_static_libs(physx_root: Path, config: str, libext: str):
-    for f in physx_root.glob(f"bin/**/*{libext}"):
+    for f in _lib_files(physx_root, f"*{libext}"):
         if not (f.is_file() and f.parent.name == config):
             continue
         if any(fnmatch.fnmatch(f.stem, p) for p in INTERMEDIATE_LIB_PATTERNS):
@@ -90,7 +97,10 @@ def main():
 
     if args.config == "release":
         gpu_name = GPU_LIB[args.platform]
-        gpu = next((c for c in root.glob(f"bin/**/{gpu_name}") if c.is_file()), None)
+        candidates = [c for c in _lib_files(root, gpu_name) if c.is_file()]
+        gpu = next((c for c in candidates if c.parent.name == "release"), None)
+        if gpu is None:
+            gpu = candidates[0] if candidates else None
         if gpu is None:
             print(f"note: {gpu_name} not found; skipping GPU zip")
         else:
