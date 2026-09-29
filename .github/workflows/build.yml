@@ -2,8 +2,10 @@ name: Build PhysX Artifacts
 
 # Builds the precompiled SDK zips SAPIEN consumes, for linux (x86_64, with the
 # CUDA GPU library), windows (with the CUDA GPU dll), and macOS (universal,
-# CPU-only). Zips are uploaded as workflow artifacts for every run, and
-# attached to a GitHub release when the run was triggered by pushing a
+# CPU-only). All platforms configure through PhysX 5.9's standalone CMake
+# entry (physx/CMakeLists.txt) — no packman or generate_projects involved.
+# Zips are uploaded as workflow artifacts for every run, and attached to a
+# GitHub release when the run was triggered by pushing a
 # `<release>-physx-<version>.patch<N>` tag.
 
 on:
@@ -22,17 +24,21 @@ jobs:
         run: |
           apt-get update -qq
           apt-get install -y -qq --no-install-recommends clang make git python3 zip
-      - uses: actions/checkout@v4
-      - name: Patch presets
+      - uses: actions/checkout@v5
+      - name: Configure
         run: |
-          sed -i 's/name="PX_BUILDSNIPPETS" value="True"/name="PX_BUILDSNIPPETS" value="False"/g; s/name="PX_BUILDPVDRUNTIME" value="True"/name="PX_BUILDPVDRUNTIME" value="False"/g' physx/buildtools/presets/public/linux-clang.xml
-          sed -i 's/-Werror//g' physx/source/compiler/cmake/linux/CMakeLists.txt
-      - name: Generate projects
-        run: ./physx/generate_projects.sh linux-clang
-      - name: Build release
-        run: cmake --build physx/compiler/linux-clang-release -- -j"$(nproc)"
-      - name: Build checked
-        run: cmake --build physx/compiler/linux-clang-checked -- -j"$(nproc)"
+          sed -i 's/ -Werror//' physx/source/compiler/cmake/linux/CMakeLists.txt
+          cmake -S physx -B build-release -DCMAKE_BUILD_TYPE=release \
+            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+            -DPX_GENERATE_STATIC_LIBRARIES=ON -DPX_BUILDSNIPPETS=OFF -DPX_BUILDPVDRUNTIME=OFF
+          cmake -S physx -B build-checked -DCMAKE_BUILD_TYPE=checked \
+            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+            -DPX_GENERATE_STATIC_LIBRARIES=ON -DPX_BUILDSNIPPETS=OFF \
+            -DPX_BUILDPVDRUNTIME=OFF -DPX_GENERATE_GPU_PROJECTS=OFF
+      - name: Build
+        run: |
+          cmake --build build-release -- -j"$(nproc)"
+          cmake --build build-checked -- -j"$(nproc)"
       - name: Package
         run: |
           python3 ci/package.py --physx-root physx --platform linux --config release --dist dist
@@ -54,25 +60,21 @@ jobs:
     runs-on: windows-2022
     timeout-minutes: 240
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install CUDA toolkit
-        uses: Jimver/cuda-toolkit@v1
+        uses: Jimver/cuda-toolkit@v0.2.36
         with:
           method: network
           cuda: 12.8.0
-      - name: Patch presets
+      - name: Configure
         shell: bash
         run: |
-          sed -i 's/name="PX_BUILDSNIPPETS" value="True"/name="PX_BUILDSNIPPETS" value="False"/g; s/name="PX_BUILDPVDRUNTIME" value="True"/name="PX_BUILDPVDRUNTIME" value="False"/g; s/name="PX_GENERATE_STATIC_LIBRARIES" value="False"/name="PX_GENERATE_STATIC_LIBRARIES" value="True"/g' physx/buildtools/presets/public/vc17win64.xml
-      - name: Generate projects
-        shell: cmd
-        run: cd physx && generate_projects.bat vc17win64
+          cmake -S physx -B build -G "Visual Studio 17 2022" -A x64 \
+            -DPX_GENERATE_STATIC_LIBRARIES=ON -DPX_BUILDSNIPPETS=OFF \
+            -DPX_BUILDPVDRUNTIME=OFF -DNV_USE_STATIC_WINCRT=ON
       - name: Build release
         shell: bash
-        run: |
-          dir=physx/compiler/vc17win64-release
-          [ -d "$dir" ] || dir=physx/compiler/vc17win64
-          cmake --build "$dir" --config Release -- -m
+        run: cmake --build build --config Release -- -m
       - name: Package
         shell: bash
         run: python ci/package.py --physx-root physx --platform windows --config release --dist dist
@@ -87,23 +89,16 @@ jobs:
 
   macos:
     runs-on: macos-14
-    timeout-minutes: 90
+    timeout-minutes: 120
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Configure (universal arm64 + x86_64)
         run: |
-          cmake -S physx/source/compiler/cmake -B build-mac \
-            -DCMAKE_BUILD_TYPE=Release \
+          cmake -S physx -B build-mac -DCMAKE_BUILD_TYPE=release \
             -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
-            -DCMAKE_C_COMPILER=clang \
-            -DCMAKE_CXX_COMPILER=clang++ \
-            -DPX_OUTPUT_ARCH=x86 \
-            -DPX_OUTPUT_BIN_DIR="$PWD/physx" \
-            -DPX_OUTPUT_LIB_DIR="$PWD/physx" \
-            -DPX_GENERATE_STATIC_LIBRARIES=TRUE \
-            -DPX_BUILDSNIPPETS=FALSE \
-            -DPX_BUILDPVDRUNTIME=FALSE \
-            -DPX_GENERATE_GPU_PROJECTS=FALSE
+            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+            -DPX_GENERATE_GPU_PROJECTS=OFF -DPX_GENERATE_STATIC_LIBRARIES=ON \
+            -DPX_BUILDSNIPPETS=OFF -DPX_BUILDPVDRUNTIME=OFF
       - name: Build release
         run: cmake --build build-mac -j"$(sysctl -n hw.ncpu)"
       - name: Package
@@ -120,7 +115,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: actions/download-artifact@v4
         with:
           path: dist
