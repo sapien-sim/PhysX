@@ -18,21 +18,19 @@ jobs:
   linux:
     runs-on: ubuntu-22.04
     timeout-minutes: 240
-    container: nvidia/cuda:12.8.1-devel-ubuntu22.04
+    # Unified build image (docker/Dockerfile in this repo, identical to the
+    # internal artifact builds): manylinux_2_28 (glibc 2.28 - keeps
+    # libPhysXGpu_64.so compatible with manylinux sapien wheels) + CUDA 12.8
+    # + gcc-toolset-11 + Python 3.15.
+    container: fxiangucsd/sapien-physx-build-env:1.0
     steps:
-      - name: Install build tools
-        run: |
-          apt-get update -qq
-          apt-get install -y -qq --no-install-recommends clang make git python3 zip cmake libgl1-mesa-dev
       - uses: actions/checkout@v5
       - name: Configure
         run: |
           sed -i 's/ -Werror//' physx/source/compiler/cmake/linux/CMakeLists.txt
           cmake -S physx -B build-release -DCMAKE_BUILD_TYPE=release \
-            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
             -DPX_GENERATE_STATIC_LIBRARIES=ON -DPX_BUILDSNIPPETS=OFF -DPX_BUILDPVDRUNTIME=OFF
           cmake -S physx -B build-checked -DCMAKE_BUILD_TYPE=checked \
-            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
             -DPX_GENERATE_STATIC_LIBRARIES=ON -DPX_BUILDSNIPPETS=OFF \
             -DPX_BUILDPVDRUNTIME=OFF -DPX_GENERATE_GPU_PROJECTS=OFF
       - name: Build
