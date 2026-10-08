@@ -1,0 +1,51 @@
+name: Build Build-Env Image
+
+# Builds and pushes fxiangucsd/sapien-physx-build-env - the unified
+# manylinux_2_28 (glibc 2.28) + CUDA 12.8 + gcc-toolset-11 + Python 3.15
+# image used by the linux artifact builds of this repo AND the internal
+# artifact builds (git.sudoai.cc, sapien-developers/physx). One image,
+# public and internal; this repo is its single source of truth.
+#
+# Requires repository secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN
+# (a Docker Hub access token with read/write scope).
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to build and push"
+        required: true
+        default: "1.0"
+      python315:
+        description: "CPython 3.15 source version (use 3.15.0rc3 if 3.15.0 final is not downloadable yet)"
+        required: false
+        default: "3.15.0"
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build image
+        env:
+          IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/sapien-physx-build-env
+          TAG: ${{ inputs.tag }}
+          PYTHON315: ${{ inputs.python315 }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          : "${DOCKERHUB_USERNAME:?DOCKERHUB_USERNAME secret not set}"
+          : "${DOCKERHUB_TOKEN:?DOCKERHUB_TOKEN secret not set}"
+          echo "building ${IMAGE}:${TAG} (python ${PYTHON315})"
+          docker build --build-arg PYTHON315_VERSION="${PYTHON315}" \
+            -t "${IMAGE}:${TAG}" -f docker/Dockerfile .
+      - name: Push image
+        env:
+          IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/sapien-physx-build-env
+          TAG: ${{ inputs.tag }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+          docker push "${IMAGE}:${TAG}"
