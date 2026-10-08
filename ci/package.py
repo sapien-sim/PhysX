@@ -32,9 +32,13 @@ CONTRACT = {
     },
 }
 
+# Canonical GPU library name shipped inside the zips (what SAPIEN's runtime
+# expects), plus the names the build tree may actually produce — the VS
+# generator emits PhysXGpu.dll without the _64 suffix. The found file is
+# always renamed to the canonical name inside the zip.
 GPU_LIB = {
-    "linux": "libPhysXGpu_64.so",
-    "windows": "PhysXGpu_64.dll",
+    "linux": ("libPhysXGpu_64.so", ("libPhysXGpu_64.so",)),
+    "windows": ("PhysXGpu_64.dll", ("PhysXGpu_64.dll", "PhysXGpu.dll")),
 }
 
 # GPU-side intermediates ship inside the shared GPU library; consumers link
@@ -104,22 +108,22 @@ def main():
         print(f"  {arc_dir}/{lib.name}")
 
     if args.config == "release" and args.platform in GPU_LIB:
-        gpu_name = GPU_LIB[args.platform]
-        candidates = [c for c in _lib_files(root, gpu_name) if c.is_file()]
+        canonical, gpu_names = GPU_LIB[args.platform]
+        candidates = [c for n in gpu_names for c in _lib_files(root, n) if c.is_file()]
         if args.build_root:
-            candidates += [c for c in Path(args.build_root).glob(f"**/{gpu_name}") if c.is_file()]
+            candidates += [c for n in gpu_names for c in Path(args.build_root).glob(f"**/{n}") if c.is_file()]
         candidates.sort()
         gpu = next((c for c in candidates if c.parent.name.lower() == "release"), None)
         if gpu is None:
             gpu = candidates[0] if candidates else None
         if gpu is None:
-            print(f"note: {gpu_name} not found; skipping GPU zip")
+            print(f"note: no {' or '.join(gpu_names)} found; skipping GPU zip")
         else:
             gpu_zip_name = {"linux": "linux-so.zip", "windows": "windows-dll.zip"}[args.platform]
             out = dist / gpu_zip_name
             with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
-                zf.write(gpu, gpu_name)
-            print(f"wrote {out} ({out.stat().st_size // (1 << 20)} MB) with {gpu_name} at zip root")
+                zf.write(gpu, canonical)
+            print(f"wrote {out} ({out.stat().st_size // (1 << 20)} MB) with {canonical} at zip root (built as {gpu.name})")
 
 
 if __name__ == "__main__":
