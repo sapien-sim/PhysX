@@ -24,9 +24,9 @@ on:
         required: true
         default: "1.0"
       python315:
-        description: "CPython 3.15 source version (use 3.15.0rc3 if 3.15.0 final is not downloadable yet)"
+        description: "CPython 3.15 source version (bump to 3.15.0 once final is on python.org)"
         required: false
-        default: "3.15.0"
+        default: "3.15.0rc3"
 
 permissions:
   contents: read
