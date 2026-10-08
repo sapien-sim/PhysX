@@ -42,8 +42,9 @@ RUN yum install -y gcc-toolset-11 git make zip unzip \
       readline-devel xz-devel ncurses-devel gdbm-devel libuuid-devel \
     && yum clean all
 
-# cmake pinned to the same version as sapien-build-env (pipx ships in the base)
-RUN pipx install cmake==3.26.3 --force
+# cmake and ninja ship with the base image via its own pipx
+# (/opt/_internal/pipx). Do NOT install cmake via pipx here: pipx refuses
+# to replace a venv it did not create in this session and the install fails.
 
 # Python 3.15 from source (Alma 8 system OpenSSL 1.1.1 satisfies CPython)
 RUN curl -fsSL "https://www.python.org/ftp/python/3.15.0/Python-${PYTHON315_VERSION}.tgz" -o /tmp/python.tgz \
@@ -68,5 +69,8 @@ RUN curl -fsSL -o /etc/yum.repos.d/cuda-rhel8.repo \
     && dnf clean all
 
 ENV CUDA_PATH=/usr/local/cuda-12.8
-ENV PATH="${CUDA_PATH}/bin:/usr/local/python3.15/bin:/root/.local/bin:/opt/rh/gcc-toolset-11/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ENV PATH="${CUDA_PATH}/bin:/usr/local/python3.15/bin:/opt/_internal/pipx/bin:/root/.local/bin:/opt/rh/gcc-toolset-11/root/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 ENV LD_LIBRARY_PATH="/opt/rh/gcc-toolset-11/root/usr/lib64:/opt/rh/gcc-toolset-11/root/usr/lib:${LD_LIBRARY_PATH}"
+
+# sanity: the toolchain must resolve from the final image PATH
+RUN cmake --version && python3.15 --version && nvcc --version
