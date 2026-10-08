@@ -1,25 +1,36 @@
 name: Build Build-Env Image
 
-# Builds and pushes fxiangucsd/sapien-physx-build-env - the unified
-# manylinux_2_28 (glibc 2.28) + CUDA 12.8 + gcc-toolset-11 + Python 3.15
-# image used by the linux artifact builds of this repo AND the internal
-# artifact builds (git.sudoai.cc, sapien-developers/physx). One image,
-# public and internal; this repo is its single source of truth.
+# Builds the unified manylinux_2_28 (glibc 2.28) + CUDA 12.8 + gcc-toolset-11
+# + Python 3.15 image (docker/Dockerfile) used by the linux artifact builds
+# of this repo AND the internal artifact builds (git.sudoai.cc,
+# sapien-developers/physx), and stages it on GHCR.
 #
-# Requires repository secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN
-# (a Docker Hub access token with read/write scope).
+# Publishing to Docker Hub (what the artifact CIs actually pull) is a manual
+# step by the maintainer:
+#   docker pull ghcr.io/sapien-sim/physx-build-env:<tag>
+#   docker tag  ghcr.io/sapien-sim/physx-build-env:<tag> fxiangucsd/sapien-physx-build-env:<tag>
+#   docker login && docker push fxiangucsd/sapien-physx-build-env:<tag>
+#
+# No repository secrets are required (the GHCR push uses the built-in
+# GITHUB_TOKEN). The first pull of the GHCR package needs `docker login
+# ghcr.io` with a PAT (read:packages), unless the package is made public
+# once via the repo's Packages settings.
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Image tag to build and push"
+        description: "Image tag to build"
         required: true
         default: "1.0"
       python315:
         description: "CPython 3.15 source version (use 3.15.0rc3 if 3.15.0 final is not downloadable yet)"
         required: false
         default: "3.15.0"
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   docker:
@@ -29,23 +40,26 @@ jobs:
       - uses: actions/checkout@v5
       - name: Build image
         env:
-          IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/sapien-physx-build-env
+          IMAGE: ghcr.io/sapien-sim/physx-build-env
           TAG: ${{ inputs.tag }}
           PYTHON315: ${{ inputs.python315 }}
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
-          : "${DOCKERHUB_USERNAME:?DOCKERHUB_USERNAME secret not set}"
-          : "${DOCKERHUB_TOKEN:?DOCKERHUB_TOKEN secret not set}"
           echo "building ${IMAGE}:${TAG} (python ${PYTHON315})"
           docker build --build-arg PYTHON315_VERSION="${PYTHON315}" \
             -t "${IMAGE}:${TAG}" -f docker/Dockerfile .
-      - name: Push image
+      - name: Stage image on GHCR
         env:
-          IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/sapien-physx-build-env
+          IMAGE: ghcr.io/sapien-sim/physx-build-env
           TAG: ${{ inputs.tag }}
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          GHCR_TOKEN: ${{ github.token }}
         run: |
-          echo "$DOCKERHUB_TOKEN" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+          echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
           docker push "${IMAGE}:${TAG}"
+      - name: Manual Docker Hub publish (instructions)
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          echo "image staged on GHCR; publish to Docker Hub manually:"
+          echo "  docker pull ghcr.io/sapien-sim/physx-build-env:${TAG}"
+          echo "  docker tag  ghcr.io/sapien-sim/physx-build-env:${TAG} fxiangucsd/sapien-physx-build-env:${TAG}"
+          echo "  docker login && docker push fxiangucsd/sapien-physx-build-env:${TAG}"

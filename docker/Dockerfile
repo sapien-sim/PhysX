@@ -19,13 +19,17 @@
 # 3.15 from day one. If 3.15.0 final is not on python.org yet, build with
 # --build-arg PYTHON315_VERSION=3.15.0rc3 (same download directory).
 #
-# How it is built & pushed: the "Build Build-Env Image" workflow in this
-# repo (.github/workflows/docker-image.yml) builds this Dockerfile on a
-# GitHub-hosted runner and pushes <DOCKERHUB_USERNAME>/sapien-physx-build-env:<tag>
-# to Docker Hub. This repo is the image's single source of truth (the internal
-# artifact CI consumes the same image). Local builds still work if needed:
-#   docker build -t fxiangucsd/sapien-physx-build-env:1.0 -f docker/Dockerfile .
-#   docker push fxiangucsd/sapien-physx-build-env:1.0
+# How it is built: the "Build Build-Env Image" workflow in this repo
+# (.github/workflows/docker-image.yml) builds this Dockerfile on a
+# GitHub-hosted runner and stages the result on GHCR
+# (ghcr.io/sapien-sim/physx-build-env:<tag>). This repo is the image's
+# single source of truth (the internal artifact CI consumes the same image).
+#
+# Publishing to Docker Hub (what the public/internal artifact CIs pull) is
+# done manually by the maintainer:
+#   docker pull ghcr.io/sapien-sim/physx-build-env:1.0
+#   docker tag  ghcr.io/sapien-sim/physx-build-env:1.0 fxiangucsd/sapien-physx-build-env:1.0
+#   docker login && docker push fxiangucsd/sapien-physx-build-env:1.0
 
 FROM quay.io/pypa/manylinux_2_28_x86_64:latest
 
