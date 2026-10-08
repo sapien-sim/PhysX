@@ -3,18 +3,11 @@ name: Build Build-Env Image
 # Builds the unified manylinux_2_28 (glibc 2.28) + CUDA 12.8 + gcc-toolset-11
 # + Python 3.15 image (docker/Dockerfile) used by the linux artifact builds
 # of this repo AND the internal artifact builds (git.sudoai.cc,
-# sapien-developers/physx), and stages it on GHCR.
+# sapien-developers/physx), and publishes it to GHCR.
 #
-# Publishing to Docker Hub (what the artifact CIs actually pull) is a manual
-# step by the maintainer:
-#   docker pull ghcr.io/sapien-sim/physx-build-env:<tag>
-#   docker tag  ghcr.io/sapien-sim/physx-build-env:<tag> fxiangucsd/sapien-physx-build-env:<tag>
-#   docker login && docker push fxiangucsd/sapien-physx-build-env:<tag>
-#
-# No repository secrets are required (the GHCR push uses the built-in
-# GITHUB_TOKEN). The first pull of the GHCR package needs `docker login
-# ghcr.io` with a PAT (read:packages), unless the package is made public
-# once via the repo's Packages settings.
+# ghcr.io/sapien-sim/physx-build-env is the single registry both artifact
+# CIs pull from. The package is public and the push uses the built-in
+# GITHUB_TOKEN - no repository secrets are needed anywhere.
 
 on:
   workflow_dispatch:
@@ -47,7 +40,7 @@ jobs:
           echo "building ${IMAGE}:${TAG} (python ${PYTHON315})"
           docker build --build-arg PYTHON315_VERSION="${PYTHON315}" \
             -t "${IMAGE}:${TAG}" -f docker/Dockerfile .
-      - name: Stage image on GHCR
+      - name: Publish image to GHCR
         env:
           IMAGE: ghcr.io/sapien-sim/physx-build-env
           TAG: ${{ inputs.tag }}
@@ -55,11 +48,8 @@ jobs:
         run: |
           echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
           docker push "${IMAGE}:${TAG}"
-      - name: Manual Docker Hub publish (instructions)
+      - name: Published
         env:
           TAG: ${{ inputs.tag }}
         run: |
-          echo "image staged on GHCR; publish to Docker Hub manually:"
-          echo "  docker pull ghcr.io/sapien-sim/physx-build-env:${TAG}"
-          echo "  docker tag  ghcr.io/sapien-sim/physx-build-env:${TAG} fxiangucsd/sapien-physx-build-env:${TAG}"
-          echo "  docker login && docker push fxiangucsd/sapien-physx-build-env:${TAG}"
+          echo "image published: ghcr.io/sapien-sim/physx-build-env:${TAG}"

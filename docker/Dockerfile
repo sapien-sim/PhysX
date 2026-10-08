@@ -20,17 +20,12 @@
 # and rc3 is ABI-frozen (identical cp315 ABI to the final). Bump the
 # default to 3.15.0 once final is downloadable.
 #
-# How it is built: the "Build Build-Env Image" workflow in this repo
-# (.github/workflows/docker-image.yml) builds this Dockerfile on a
-# GitHub-hosted runner and stages the result on GHCR
-# (ghcr.io/sapien-sim/physx-build-env:<tag>). This repo is the image's
-# single source of truth (the internal artifact CI consumes the same image).
-#
-# Publishing to Docker Hub (what the public/internal artifact CIs pull) is
-# done manually by the maintainer:
-#   docker pull ghcr.io/sapien-sim/physx-build-env:1.0
-#   docker tag  ghcr.io/sapien-sim/physx-build-env:1.0 fxiangucsd/sapien-physx-build-env:1.0
-#   docker login && docker push fxiangucsd/sapien-physx-build-env:1.0
+# How it is built & published: the "Build Build-Env Image" workflow in
+# this repo (.github/workflows/docker-image.yml) builds this Dockerfile
+# on a GitHub-hosted runner and pushes the result to the public GHCR
+# package ghcr.io/sapien-sim/physx-build-env:<tag> - the single registry
+# that both the public and the internal (git.sudoai.cc) artifact CIs
+# pull from. This repo is the image's single source of truth.
 
 FROM quay.io/pypa/manylinux_2_28_x86_64:latest
 
