@@ -64,10 +64,18 @@ RUN curl -fsSL "https://www.python.org/ftp/python/3.15.0/Python-${PYTHON315_VERS
 
 # CUDA 12.8 compiler + runtime headers/static lib only (no driver, no full
 # toolkit) via NVIDIA's RHEL8 repo. Write the repo file directly so we do not
-# depend on dnf-utils' config-manager plugin.
+# depend on dnf-utils' config-manager plugin. libcudart_static.a ships inside
+# cuda-cudart-devel (the rhel8 repo has no separate -static package); the
+# explicit check fails the image build with dnf's own answer if that ever
+# changes.
 RUN curl -fsSL -o /etc/yum.repos.d/cuda-rhel8.repo \
       https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/cuda-rhel8.repo \
-    && dnf install -y cuda-nvcc-12-8 cuda-cudart-devel-12-8 cuda-cudart-static-12-8 cuda-cuobjdump-12-8 \
+    && dnf install -y cuda-nvcc-12-8 cuda-cudart-devel-12-8 cuda-cuobjdump-12-8 \
+    && if ! find /usr/local/cuda-12.8 -name 'libcudart_static.a' -print -quit | grep -q .; then \
+         echo "libcudart_static.a missing from cuda-cudart-devel - dnf providers:"; \
+         dnf -q whatprovides '*/libcudart_static.a' || true; \
+         exit 1; \
+       fi \
     && dnf clean all
 
 ENV CUDA_PATH=/usr/local/cuda-12.8
