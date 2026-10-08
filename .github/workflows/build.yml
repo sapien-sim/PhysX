@@ -36,13 +36,23 @@ jobs:
           # which is part of the GPU driver, not the toolkit the image ships
           # (nvcc + cudart only). The internal CI runs on GPU runners where
           # the container runtime mounts the real driver; GitHub-hosted
-          # runners have none. Install NVIDIA's link-time stub from the repo
-          # already configured in the image — the entry's cmake fallback
-          # searches ${CUDAToolkit_LIBRARY_DIR}/stubs automatically. The
-          # stub's SONAME is libcuda.so.1, so the built library still binds
-          # to the real driver at runtime.
-          dnf install -y cuda-driver-dev-12-8
-          ls -l "${CUDA_PATH}/targets/x86_64-linux/lib/stubs/"
+          # runners have none. The rhel8 CUDA network repo carries no stub
+          # package at all (verified against its filelists: zero libcuda
+          # paths). NVIDIA publishes the link-time stub in the Ubuntu repo:
+          # cuda-driver-dev-12-8 is a 29 KB deb whose data.tar places
+          # stubs/libcuda.so (SONAME libcuda.so.1, full driver-API symbols)
+          # at the standard targets path. The entry's cmake stub search
+          # covers ${CUDAToolkit_LIBRARY_DIR}/stubs automatically, and the
+          # built library binds the real driver at runtime.
+          cd /tmp \
+            && curl -fsSL -o ddev.deb \
+               "https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-driver-dev-12-8_12.8.90-1_amd64.deb" \
+            && ar x ddev.deb data.tar.xz \
+            && tar -xJf data.tar.xz ./usr/local/cuda-12.8/targets/x86_64-linux/lib/stubs/libcuda.so \
+            && mkdir -p "${CUDA_PATH}/targets/x86_64-linux/lib/stubs" \
+            && cp ./usr/local/cuda-12.8/targets/x86_64-linux/lib/stubs/libcuda.so \
+                 "${CUDA_PATH}/targets/x86_64-linux/lib/stubs/" \
+            && ls -l "${CUDA_PATH}/targets/x86_64-linux/lib/stubs/"
       - name: Configure
         run: |
           sed -i 's/ -Werror//' physx/source/compiler/cmake/linux/CMakeLists.txt
