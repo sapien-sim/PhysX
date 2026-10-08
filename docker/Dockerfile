@@ -66,7 +66,7 @@ RUN curl -fsSL "https://www.python.org/ftp/python/3.15.0/Python-${PYTHON315_VERS
 # toolkit) via NVIDIA's RHEL8 repo. Write the repo file directly so we do not
 # depend on dnf-utils' config-manager plugin.
 RUN curl -fsSL -o /etc/yum.repos.d/cuda-rhel8.repo \
-      https://developer.download.nvidia.com/compute/cuda/rhel8/x86_64/cuda-rhel8.repo \
+      https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/cuda-rhel8.repo \
     && dnf install -y cuda-nvcc-12-8 cuda-cudart-devel-12-8 cuda-cudart-static-12-8 cuda-cuobjdump-12-8 \
     && dnf clean all
 
