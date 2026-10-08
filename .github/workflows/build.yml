@@ -1,0 +1,176 @@
+name: Build PhysX Artifacts
+
+# Builds the precompiled SDK zips SAPIEN consumes, for linux (x86_64, with the
+# CUDA GPU library; plus CPU-only aarch64), windows (with the CUDA GPU dll),
+# and macOS (universal, CPU-only). All platforms configure through PhysX
+# 5.11's standalone CMake entry (physx/CMakeLists.txt) — no packman or
+# generate_projects involved.
+# Zips are uploaded as workflow artifacts for every run, and attached to a
+# GitHub release when the run was triggered by pushing a
+# `<release>-physx-<version>.patch<N>` tag.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "*-physx-*.patch*"
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 240
+    # Unified build image (docker/Dockerfile in this repo, identical to the
+    # internal artifact builds): manylinux_2_28 (glibc 2.28 - keeps
+    # libPhysXGpu_64.so compatible with manylinux sapien wheels) + CUDA 12.8
+    # + gcc-toolset-11 + Python 3.15.
+    container: ghcr.io/sapien-sim/physx-build-env:1.0
+    env:
+      # Same as the internal artifact CI: helps CMake's FindCUDAToolkit find
+      # the toolkit (and its lib64/stubs/libcuda.so) inside the build image.
+      CUDA_PATH: /usr/local/cuda-12.8
+    steps:
+      - uses: actions/checkout@v5
+      - name: Configure
+        run: |
+          sed -i 's/ -Werror//' physx/source/compiler/cmake/linux/CMakeLists.txt
+          cmake -S physx -B build-release -DCMAKE_BUILD_TYPE=release \
+            -DPX_GENERATE_STATIC_LIBRARIES=ON -DPX_BUILDSNIPPETS=OFF -DPX_BUILDPVDRUNTIME=OFF
+          cmake -S physx -B build-checked -DCMAKE_BUILD_TYPE=checked \
+            -DPX_GENERATE_STATIC_LIBRARIES=ON -DPX_BUILDSNIPPETS=OFF \
+            -DPX_BUILDPVDRUNTIME=OFF -DPX_GENERATE_GPU_PROJECTS=OFF
+      - name: Build
+        run: |
+          cmake --build build-release -- -j"$(nproc)"
+          cmake --build build-checked -- -j"$(nproc)"
+      - name: Package
+        run: |
+          python3 ci/package.py --physx-root physx --platform linux --config release --dist dist
+          python3 ci/package.py --physx-root physx --platform linux --config checked --dist dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-release
+          path: dist/linux-release.zip
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-checked
+          path: dist/linux-checked.zip
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-so
+          path: dist/linux-so.zip
+          if-no-files-found: error
+
+  linux-aarch64:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 240
+    # Official pypa manylinux_2_28 aarch64 image: same glibc 2.28 base as the
+    # x86_64 build, so the static libs are compiled against the libc the
+    # aarch64 SAPIEN wheels target. CPU-only (no CUDA on arm runners).
+    container: quay.io/pypa/manylinux_2_28_aarch64:latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Prepare
+        run: |
+          echo "/opt/python/cp312-cp312/bin" >> "$GITHUB_PATH"
+          command -v cmake >/dev/null 2>&1 || /opt/python/cp312-cp312/bin/pip install cmake
+      - name: Configure
+        run: |
+          sed -i 's/ -Werror//' physx/source/compiler/cmake/linux/CMakeLists.txt
+          cmake -S physx -B build-release -DCMAKE_BUILD_TYPE=release \
+            -DPX_GENERATE_STATIC_LIBRARIES=ON -DPX_BUILDSNIPPETS=OFF \
+            -DPX_BUILDPVDRUNTIME=OFF -DPX_GENERATE_GPU_PROJECTS=OFF
+      - name: Build
+        run: cmake --build build-release -- -j"$(nproc)"
+      - name: Package
+        run: python3 ci/package.py --physx-root physx --platform linux-aarch64 --config release --dist dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-aarch64-release
+          path: dist/linux-aarch64-release.zip
+          if-no-files-found: error
+
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install CUDA toolkit
+        uses: Jimver/cuda-toolkit@v0.2.36
+        with:
+          method: network
+          cuda: 12.8.0
+      - name: Configure
+        shell: bash
+        run: |
+          cmake -S physx -B build -G "Visual Studio 17 2022" -A x64 \
+            -DPX_GENERATE_STATIC_LIBRARIES=ON -DPX_BUILDSNIPPETS=OFF \
+            -DPX_BUILDPVDRUNTIME=OFF -DNV_USE_STATIC_WINCRT=ON
+      - name: Build release
+        shell: bash
+        run: cmake --build build --config Release -- -m
+      - name: Package
+        shell: bash
+        run: |
+          python ci/package.py --physx-root physx --platform windows --config release --dist dist --build-root build
+          echo "== dlls under physx/ =="
+          find physx -name "*.dll" | head -20
+          echo "== dlls under build/ =="
+          find build -name "*.dll" | head -20
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-release
+          path: dist/windows-release.zip
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-dll
+          path: dist/windows-dll.zip
+          if-no-files-found: error
+
+  macos:
+    runs-on: macos-14
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - name: Configure (universal arm64 + x86_64)
+        run: |
+          cmake -S physx -B build-mac -DCMAKE_BUILD_TYPE=release \
+            -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
+            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+            -DPX_GENERATE_GPU_PROJECTS=OFF -DPX_GENERATE_STATIC_LIBRARIES=ON \
+            -DPX_BUILDSNIPPETS=OFF -DPX_BUILDPVDRUNTIME=OFF
+      - name: Build release
+        run: cmake --build build-mac -j"$(sysctl -n hw.ncpu)"
+      - name: Package
+        run: python3 ci/package.py --physx-root physx --platform macos --config release --dist dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macOS-universal-release
+          path: dist/macOS-universal-release.zip
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [linux, linux-aarch64, windows, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            dist/linux-release.zip dist/linux-checked.zip dist/linux-so.zip \
+            dist/linux-aarch64-release.zip \
+            dist/windows-release.zip dist/windows-dll.zip \
+            dist/macOS-universal-release.zip \
+            --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" \
+            --notes "Precompiled PhysX SDK 5.11.0 (release 112.0) for SAPIEN."

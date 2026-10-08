@@ -27,7 +27,7 @@ namespace physx
 			QuatGetMat33V(qV, column0V, column1V, column2V);
 // The scalar AoS backend (COMPILE_VECTOR_INTRINSICS == 0, see PxVecMath.h) keeps Vec3V and
 // Vec4V as distinct types, so the padded V4 stores below do not compile against it.
-#if defined(PX_SIMD_DISABLED) || (PX_LINUX && (PX_ARM || PX_A64)) || !COMPILE_VECTOR_INTRINSICS
+#if defined(PX_SIMD_DISABLED) || ((PX_LINUX || PX_APPLE_FAMILY) && (PX_ARM || PX_A64)) || !COMPILE_VECTOR_INTRINSICS
 			V3StoreU(column0V, column0);
 			V3StoreU(column1V, column1);
 			V3StoreU(column2V, column2);

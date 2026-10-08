@@ -1,0 +1,55 @@
+name: Build Build-Env Image
+
+# Builds the unified manylinux_2_28 (glibc 2.28) + CUDA 12.8 + gcc-toolset-11
+# + Python 3.15 image (docker/Dockerfile) used by the linux artifact builds
+# of this repo AND the internal artifact builds (git.sudoai.cc,
+# sapien-developers/physx), and publishes it to GHCR.
+#
+# ghcr.io/sapien-sim/physx-build-env is the single registry both artifact
+# CIs pull from. The package is public and the push uses the built-in
+# GITHUB_TOKEN - no repository secrets are needed anywhere.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Image tag to build"
+        required: true
+        default: "1.0"
+      python315:
+        description: "CPython 3.15 source version (bump to 3.15.0 once final is on python.org)"
+        required: false
+        default: "3.15.0rc3"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build image
+        env:
+          IMAGE: ghcr.io/sapien-sim/physx-build-env
+          TAG: ${{ inputs.tag }}
+          PYTHON315: ${{ inputs.python315 }}
+        run: |
+          echo "building ${IMAGE}:${TAG} (python ${PYTHON315})"
+          docker build --build-arg PYTHON315_VERSION="${PYTHON315}" \
+            -t "${IMAGE}:${TAG}" -f docker/Dockerfile .
+      - name: Publish image to GHCR
+        env:
+          IMAGE: ghcr.io/sapien-sim/physx-build-env
+          TAG: ${{ inputs.tag }}
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          echo "${GHCR_TOKEN}" | docker login ghcr.io -u "${GITHUB_ACTOR}" --password-stdin
+          docker push "${IMAGE}:${TAG}"
+      - name: Published
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          echo "image published: ghcr.io/sapien-sim/physx-build-env:${TAG}"
