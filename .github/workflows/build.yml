@@ -30,6 +30,19 @@ jobs:
       CUDA_PATH: /usr/local/cuda-12.8
     steps:
       - uses: actions/checkout@v5
+      - name: Install CUDA driver stub
+        run: |
+          # libPhysXGpu_64.so links against the CUDA driver API (libcuda),
+          # which is part of the GPU driver, not the toolkit the image ships
+          # (nvcc + cudart only). The internal CI runs on GPU runners where
+          # the container runtime mounts the real driver; GitHub-hosted
+          # runners have none. Install NVIDIA's link-time stub from the repo
+          # already configured in the image — the entry's cmake fallback
+          # searches ${CUDAToolkit_LIBRARY_DIR}/stubs automatically. The
+          # stub's SONAME is libcuda.so.1, so the built library still binds
+          # to the real driver at runtime.
+          dnf install -y cuda-driver-dev-12-8
+          ls -l "${CUDA_PATH}/targets/x86_64-linux/lib/stubs/"
       - name: Configure
         run: |
           sed -i 's/ -Werror//' physx/source/compiler/cmake/linux/CMakeLists.txt
