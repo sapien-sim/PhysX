@@ -22,7 +22,7 @@ jobs:
     # internal artifact builds): manylinux_2_28 (glibc 2.28 - keeps
     # libPhysXGpu_64.so compatible with manylinux sapien wheels) + CUDA 12.8
     # + gcc-toolset-11 + Python 3.15.
-    container: fxiangucsd/sapien-physx-build-env:1.0
+    container: ghcr.io/sapien-sim/physx-build-env:1.0
     steps:
       - uses: actions/checkout@v5
       - name: Configure
